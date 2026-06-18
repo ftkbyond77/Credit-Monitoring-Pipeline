@@ -33,7 +33,12 @@ def reset_state():
 st.sidebar.title("Navigation Menu")
 page = st.sidebar.radio(
     "เลือกหน้าต่างการทำงาน:",
-    ["Data Preview and Processing", "Credit Availability Dashboard", "Credit Overdue Dashboard"]
+    [
+        "Data Preview and Processing", 
+        "Transform Data", 
+        "Credit Availability Dashboard", 
+        "Credit Overdue Dashboard"
+    ]
 )
 
 # ==========================================
@@ -83,22 +88,37 @@ if page == "Data Preview and Processing":
                         st.session_state.df_overdue = df_o
                         st.session_state.latest_overdue_name = latest_name
                         st.session_state.debug_info_dict = debug_info
+                        # เก็บรายชื่อ Sheet ที่ถูกเลือกไว้ใน Session State ด้วย
+                        st.session_state.selected_sheets = selected_sheets
                         st.session_state.data_processed = True
+                        
                     except Exception as e:
                         st.error(f"เกิดข้อผิดพลาดระหว่างการทำงานของระบบ: {e}")
+        
+        # แสดงข้อความเมื่อประมวลผลเสร็จแล้ว
+        if st.session_state.data_processed:
+            st.success("✅ ประมวลผลข้อมูลสำเร็จ! กรุณาไปที่เมนู 'Transform Data' ที่แถบด้านซ้ายเพื่อตรวจสอบข้อมูล")
 
-    # แสดงผลตารางเมื่อข้อมูลถูกประมวลผลแล้ว
-    if st.session_state.data_processed:
+# ==========================================
+# หน้าที่ 2: Transform Data (ใหม่)
+# ==========================================
+elif page == "Transform Data":
+    st.title("Transform Data & Preview")
+    
+    if not st.session_state.data_processed:
+        st.warning("⚠️ ไม่พบข้อมูล กรุณากลับไปที่เมนู 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
+    else:
         df_avail = st.session_state.df_avail
         df_overdue = st.session_state.df_overdue
         latest_overdue_name = st.session_state.latest_overdue_name
         debug_info_dict = st.session_state.debug_info_dict
+        selected_sheets = st.session_state.get('selected_sheets', [])
         
-        tab1, tab2 = st.tabs(["Credit Availability", "Credit Overdue Analysis"])
+        tab_avail, tab_overdue = st.tabs(["Credit Availability (Transform)", "Credit Overdue (Transform)"])
         
-        # --- ส่วนแสดงผล Credit Availability ---
-        with tab1:
-            st.subheader("ภาพรวมข้อมูล Credit Availability")
+        # --- ส่วนที่ 1: Transform Data ของ Credit Availability ---
+        with tab_avail:
+            st.subheader("ภาพรวมข้อมูลหลังการ Transform และทำความสะอาด")
             
             filtered_avail = df_avail.copy()
             
@@ -179,9 +199,9 @@ if page == "Data Preview and Processing":
                                 st.dataframe(dtype_df, height=200, use_container_width=True)
                 else:
                     st.info("กรุณาเลือก Sheet ที่ต้องการตรวจสอบ")
-            
-        # --- ส่วนแสดงผล Credit Overdue ---
-        with tab2:
+
+        # --- ส่วนที่ 2: Transform Data ของ Credit Overdue ---
+        with tab_overdue:
             with st.expander("แสดงข้อมูล Overdue ทั้งหมด (Overview)", expanded=False):
                 st.caption(f"อ้างอิงจากไฟล์: {latest_overdue_name}")
                 st.dataframe(df_overdue.head(10), use_container_width=True)
@@ -228,21 +248,21 @@ if page == "Data Preview and Processing":
             st.caption(f"โครงสร้างข้อมูลที่ถูกคัดกรอง: {filtered_overdue.shape[1]} คอลัมน์ x {filtered_overdue.shape[0]} แถว (จากข้อมูลตั้งต้น {df_overdue.shape[0]} แถว)")
 
 # ==========================================
-# หน้าที่ 2: Credit Availability Dashboard
+# หน้าที่ 3: Credit Availability Dashboard
 # ==========================================
 elif page == "Credit Availability Dashboard":
     st.title("Credit Availability Dashboard")
     st.info("พื้นที่ว่างสำหรับสร้าง Dashboard อนาคต (Credit Availability)")
     
     if not st.session_state.data_processed:
-        st.warning("กรุณากลับไปที่หน้า 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
+        st.warning("กรุณากลับไปที่เมนู 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
 
 # ==========================================
-# หน้าที่ 3: Credit Overdue Dashboard
+# หน้าที่ 4: Credit Overdue Dashboard
 # ==========================================
 elif page == "Credit Overdue Dashboard":
     st.title("Credit Overdue Dashboard")
     st.info("พื้นที่ว่างสำหรับสร้าง Dashboard อนาคต (Credit Overdue)")
     
     if not st.session_state.data_processed:
-        st.warning("กรุณากลับไปที่หน้า 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
+        st.warning("กรุณากลับไปที่เมนู 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
