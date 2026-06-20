@@ -1,268 +1,153 @@
+# app.py
+
 import streamlit as st
-import datetime
-import config
-from et_pipeline import get_sheet_names, analyze_excel_sheets, run_pipeline
+import streamlit.components.v1 as components
+from styles import DASHBOARD_CSS, SIDEBAR_TOGGLE_HTML
+from views.view_loading   import render as render_loading
+from views.view_transform import render as render_transform
+from views.view_avail     import render as render_avail
 
 st.set_page_config(page_title="Credit Automate Dashboard", layout="wide")
 
-# ==========================================
-# ระบบจัดการหน่วยความจำ (Session State Management)
-# ==========================================
-if 'data_processed' not in st.session_state:
-    st.session_state.data_processed = False
-if 'df_avail' not in st.session_state:
-    st.session_state.df_avail = None
-if 'df_overdue' not in st.session_state:
-    st.session_state.df_overdue = None
-if 'latest_overdue_name' not in st.session_state:
-    st.session_state.latest_overdue_name = ""
-if 'debug_info_dict' not in st.session_state:
-    st.session_state.debug_info_dict = {}
+# Inject global CSS (runs inside Streamlit main iframe)
+st.markdown(DASHBOARD_CSS, unsafe_allow_html=True)
 
-def reset_state():
-    """ล้างข้อมูลในหน่วยความจำเมื่อมีการเปลี่ยนไฟล์หรือตั้งค่าใหม่"""
-    st.session_state.data_processed = False
-    st.session_state.df_avail = None
-    st.session_state.df_overdue = None
-    st.session_state.latest_overdue_name = ""
-    st.session_state.debug_info_dict = {}
+# Inject sidebar toggle button + JS
+# height=0 makes the component invisible in the page flow.
+# The button itself is position:fixed inside the parent window so it
+# always appears at top-left regardless of scroll or page content.
+components.html(SIDEBAR_TOGGLE_HTML, height=0, scrolling=False)
 
-# ==========================================
-# แถบเมนูด้านข้าง (Sidebar Navigation)
-# ==========================================
-st.sidebar.title("Navigation Menu")
-page = st.sidebar.radio(
-    "เลือกหน้าต่างการทำงาน:",
-    [
-        "Data Preview and Processing", 
-        "Transform Data", 
-        "Credit Availability Dashboard", 
-        "Credit Overdue Dashboard"
-    ]
-)
+# =============================================================================
+# Session State defaults
+# =============================================================================
+_DEFAULTS = {
+    'data_processed':       False,
+    'df_avail':             None,
+    'df_overdue':           None,
+    'latest_overdue_name':  "",
+    'debug_info_dict':      {},
+    'selected_sheets':      [],
+    'active_page':          'loading',
+}
+for _k, _v in _DEFAULTS.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
 
-# ==========================================
-# หน้าที่ 1: Data Preview and Processing
-# ==========================================
-if page == "Data Preview and Processing":
-    st.title("Data Preview and Processing")
-    
-    col1, col2 = st.columns(2)
 
-    with col1:
-        st.info("ส่วนที่ 1: Credit Availability\n\nอัปโหลดไฟล์ข้อมูลตั้งต้น (Excel) ที่นี่")
-        avail_file = st.file_uploader("Availability File", type=['xlsx', 'xls'], key="avail", on_change=reset_state)
-        
-        selected_sheets = []
-        if avail_file:
-            valid_sheets, invalid_sheets = analyze_excel_sheets(avail_file)
-            
-            if invalid_sheets:
-                st.error(f"ระบบตรวจพบ Sheet ที่โครงสร้างไม่ถูกต้อง (ไม่มีคอลัมน์ Customer Code): {', '.join(invalid_sheets)}")
-            if valid_sheets:
-                st.success(f"ระบบตรวจพบ Sheet ที่มีโครงสร้างสมบูรณ์: {', '.join(valid_sheets)}")
-                
-            selected_sheets = st.multiselect(
-                "ระบุรายชื่อ Sheet ที่ต้องการนำไปประมวลผล:",
-                options=valid_sheets + invalid_sheets,
-                default=valid_sheets,
-                on_change=reset_state
-            )
+def _set_page(key: str):
+    st.session_state.active_page = key
 
-    with col2:
-        st.info("ส่วนที่ 2: Credit Overdue\n\nอัปโหลดไฟล์ที่ทำการ Export จากระบบ Fiori ที่นี่ (ระบบจะเลือกไฟล์ล่าสุดอัตโนมัติ)")
-        overdue_files = st.file_uploader("Overdue Files", type=['xlsx', 'xls'], accept_multiple_files=True, key="overdue", on_change=reset_state)
 
-    st.divider()
+# =============================================================================
+# Sidebar Navigation
+# =============================================================================
+processed = st.session_state.data_processed
+active    = st.session_state.active_page
 
-    # ปุ่มประมวลผลข้อมูล
-    if avail_file and selected_sheets and overdue_files:
-        col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-        with col_btn2:
-            if st.button("ประมวลผลข้อมูลตั้งต้น (Process Data)", type="primary", use_container_width=True):
-                with st.spinner("กำลังดำเนินการทำความสะอาดและจัดรูปแบบข้อมูล..."):
-                    try:
-                        # ประมวลผลและเก็บข้อมูลลง Session State เพื่อนำไปใช้หน้าอื่น
-                        df_a, df_o, latest_name, debug_info = run_pipeline(avail_file, selected_sheets, overdue_files)
-                        st.session_state.df_avail = df_a
-                        st.session_state.df_overdue = df_o
-                        st.session_state.latest_overdue_name = latest_name
-                        st.session_state.debug_info_dict = debug_info
-                        # เก็บรายชื่อ Sheet ที่ถูกเลือกไว้ใน Session State ด้วย
-                        st.session_state.selected_sheets = selected_sheets
-                        st.session_state.data_processed = True
-                        
-                    except Exception as e:
-                        st.error(f"เกิดข้อผิดพลาดระหว่างการทำงานของระบบ: {e}")
-        
-        # แสดงข้อความเมื่อประมวลผลเสร็จแล้ว
-        if st.session_state.data_processed:
-            st.success("✅ ประมวลผลข้อมูลสำเร็จ! กรุณาไปที่เมนู 'Transform Data' ที่แถบด้านซ้ายเพื่อตรวจสอบข้อมูล")
+with st.sidebar:
+    st.markdown(
+        '<div style="font-size:14px;font-weight:700;color:#1a2540;padding:4px 0 1px 0;">'
+        'Credit Monitor</div>'
+        '<div style="font-size:9px;color:#4a6fa5;margin-bottom:4px;">'
+        'SCG — ET Pipeline System</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<hr class="nav-divider">', unsafe_allow_html=True)
 
-# ==========================================
-# หน้าที่ 2: Transform Data (ใหม่)
-# ==========================================
-elif page == "Transform Data":
-    st.title("Transform Data & Preview")
-    
-    if not st.session_state.data_processed:
-        st.warning("⚠️ ไม่พบข้อมูล กรุณากลับไปที่เมนู 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
+    # --- Data Pipeline ---
+    st.markdown(
+        '<span class="nav-section-label">Data Pipeline</span>',
+        unsafe_allow_html=True,
+    )
+    if st.button(
+        "Loading and Processing Data",
+        key="nav_loading",
+        use_container_width=True,
+        type="primary" if active == 'loading' else "secondary",
+    ):
+        _set_page('loading')
+        st.rerun()
+
+    if st.button(
+        "Transformed and Preview Data",
+        key="nav_transform",
+        use_container_width=True,
+        type="primary" if active == 'transform' else "secondary",
+    ):
+        _set_page('transform')
+        st.rerun()
+
+    st.markdown('<hr class="nav-divider">', unsafe_allow_html=True)
+
+    # --- Analytics Dashboard ---
+    st.markdown(
+        '<span class="nav-section-label">Analytics Dashboard</span>',
+        unsafe_allow_html=True,
+    )
+    if not processed:
+        st.markdown(
+            '<div style="font-size:9px;color:#b0bec5;padding:3px 6px;">'
+            'Process data first to unlock dashboards.</div>',
+            unsafe_allow_html=True,
+        )
     else:
-        df_avail = st.session_state.df_avail
-        df_overdue = st.session_state.df_overdue
-        latest_overdue_name = st.session_state.latest_overdue_name
-        debug_info_dict = st.session_state.debug_info_dict
-        selected_sheets = st.session_state.get('selected_sheets', [])
-        
-        tab_avail, tab_overdue = st.tabs(["Credit Availability (Transform)", "Credit Overdue (Transform)"])
-        
-        # --- ส่วนที่ 1: Transform Data ของ Credit Availability ---
-        with tab_avail:
-            st.subheader("ภาพรวมข้อมูลหลังการ Transform และทำความสะอาด")
-            
-            filtered_avail = df_avail.copy()
-            
-            if 'SOURCE_SHEET' in filtered_avail.columns:
-                available_sheets_in_data = filtered_avail['SOURCE_SHEET'].unique().tolist()
-                
-                if len(available_sheets_in_data) > 1:
-                    selected_view_sheet = st.selectbox(
-                        "เลือก Sheet ที่ต้องการเรียกดูข้อมูล:", 
-                        available_sheets_in_data,
-                        key="view_sheet_selector"
-                    )
-                    filtered_avail = filtered_avail[filtered_avail['SOURCE_SHEET'] == selected_view_sheet]
-            
-            st.markdown("ส่วนควบคุมข้อมูลประจำรอบ (Snapshot Date)")
-            if 'DATE' in filtered_avail.columns:
-                date_list = sorted(filtered_avail['DATE'].dropna().unique().tolist(), reverse=True)
-                if date_list:
-                    formatted_date_options = {d: d.strftime('%d/%m/%Y') for d in date_list}
-                    
-                    selected_date = st.selectbox(
-                        "เลือกวันที่ของข้อมูล:", 
-                        options=date_list, 
-                        format_func=lambda x: formatted_date_options[x],
-                        index=0
-                    )
-                    filtered_avail = filtered_avail[filtered_avail['DATE'] == selected_date]
-            
-            st.divider()
-            
-            view_avail = st.radio("รูปแบบการแสดงตาราง:", ["Preview (30 แถว)", "แสดงทั้งหมด"], horizontal=True, key="view_avail")
-            display_df_avail = filtered_avail.head(30) if "Preview" in view_avail else filtered_avail
-            
-            st.dataframe(
-                display_df_avail,
-                column_config={
-                    "CURRENT_DEBT_MILLION_THB_PERCENT": st.column_config.NumberColumn("Debt Percent", format="%.2f"),
-                    "DATE": st.column_config.DateColumn("Date", format="DD/MM/YYYY")
-                },
-                use_container_width=True,
-                height=450
-            )
-            
-            st.divider()
-            with st.expander("ตรวจสอบความถูกต้องของข้อมูล (Data Governance & Debug Log)", expanded=False):
-                st.markdown("รายงานสรุปการทำความสะอาดข้อมูล (Data Cleansing Summary แยกตาม Sheet ที่เลือกใช้งาน)")
-                
-                active_debug_sheets = [s for s in selected_sheets if s in debug_info_dict]
-                
-                if active_debug_sheets:
-                    debug_tabs = st.tabs(active_debug_sheets)
-                    for idx, sheet in enumerate(active_debug_sheets):
-                        with debug_tabs[idx]:
-                            d_info = debug_info_dict[sheet]
-                            
-                            m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-                            m_col1.metric(label="ข้อมูลดิบตั้งต้น (แถว)", value=d_info['raw_rows'])
-                            m_col2.metric(label="ลบแถวหัวข้อซ้ำซ้อน (แถว)", value=len(d_info['header_dropped_df']), delta="- ตัดออก", delta_color="inverse")
-                            m_col3.metric(label="ลบแถวว่าง/ข้อมูลแหว่ง (แถว)", value=d_info['na_dropped_count'], delta="- ตัดออก", delta_color="inverse")
-                            m_col4.metric(label="ข้อมูลพร้อมใช้งาน (แถว)", value=d_info['final_rows'], delta="สมบูรณ์", delta_color="normal")
-                            
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            
-                            d_col1, d_col2 = st.columns(2)
-                            with d_col1:
-                                st.markdown("**รายการแถวหัวข้อซ้ำซ้อนที่ถูกตัดออก:**")
-                                st.caption("ข้อมูลเหล่านี้ถูกตรวจสอบและตัดออกเพื่อไม่ให้กระทบกับการประมวลผลตัวเลข")
-                                if not d_info['header_dropped_df'].empty:
-                                    st.dataframe(d_info['header_dropped_df'], height=200, use_container_width=True)
-                                else:
-                                    st.info("ไม่พบแถวที่เป็นหัวข้อซ้ำซ้อนใน Sheet นี้")
-                                    
-                            with d_col2:
-                                st.markdown("**การตรวจสอบชนิดข้อมูล (Data Types Schema):**")
-                                st.caption("โครงสร้างประเภทข้อมูลที่ผ่านการแปลงรูปแล้ว")
-                                dtype_df = df_avail.dtypes.astype(str).reset_index()
-                                dtype_df.columns = ['ชื่อคอลัมน์ (Column)', 'ประเภทข้อมูล (Data Type)']
-                                st.dataframe(dtype_df, height=200, use_container_width=True)
-                else:
-                    st.info("กรุณาเลือก Sheet ที่ต้องการตรวจสอบ")
+        if st.button(
+            "Credit Availability",
+            key="nav_avail",
+            use_container_width=True,
+            type="primary" if active == 'avail' else "secondary",
+        ):
+            _set_page('avail')
+            st.rerun()
 
-        # --- ส่วนที่ 2: Transform Data ของ Credit Overdue ---
-        with tab_overdue:
-            with st.expander("แสดงข้อมูล Overdue ทั้งหมด (Overview)", expanded=False):
-                st.caption(f"อ้างอิงจากไฟล์: {latest_overdue_name}")
-                st.dataframe(df_overdue.head(10), use_container_width=True)
+        if st.button(
+            "Credit Overdue",
+            key="nav_overdue_dash",
+            use_container_width=True,
+            type="primary" if active == 'overdue_dash' else "secondary",
+        ):
+            _set_page('overdue_dash')
+            st.rerun()
 
-            st.divider()
-            
-            st.subheader("ส่วนควบคุมการคัดกรองข้อมูล (Dynamic Filters)")
-            
-            with st.form("overdue_filter_form"):
-                st.markdown("กรุณาเลือกเงื่อนไขที่ต้องการกรองข้อมูล (สามารถเลือกได้หลายคอลัมน์พร้อมกัน) และกดปุ่มมุมขวาล่างเพื่อประมวลผล")
-                
-                filter_columns = st.columns(4)
-                user_filters = {}
-                
-                for idx, col_name in enumerate(df_overdue.columns):
-                    with filter_columns[idx % 4]:
-                        unique_vals = df_overdue[col_name].dropna().unique()
-                        try:
-                            unique_vals = sorted(unique_vals)
-                        except TypeError:
-                            unique_vals = sorted(unique_vals, key=str)
-                        
-                        selected_vals = st.multiselect(col_name, unique_vals, key=f"form_filter_{col_name}")
-                        
-                        if selected_vals:
-                            user_filters[col_name] = selected_vals
+        if st.button(
+            "Credit Monitoring",
+            key="nav_monitoring",
+            use_container_width=True,
+            type="primary" if active == 'monitoring' else "secondary",
+        ):
+            _set_page('monitoring')
+            st.rerun()
 
-                st.markdown("<br>", unsafe_allow_html=True)
-                f_spacer, f_btn = st.columns([5, 1])
-                with f_btn:
-                    submit_filter = st.form_submit_button("ประมวลผลการกรอง", type="primary", use_container_width=True)
 
-            filtered_overdue = df_overdue.copy()
-            for filter_col, selected_values in user_filters.items():
-                filtered_overdue = filtered_overdue[filtered_overdue[filter_col].isin(selected_values)]
+# =============================================================================
+# Page Router
+# =============================================================================
+if active == 'loading':
+    render_loading()
 
-            st.divider()
+elif active == 'transform':
+    render_transform()
 
-            st.subheader("ผลลัพธ์ข้อมูล Overdue")
-            view_overdue = st.radio("รูปแบบการแสดงตาราง:", ["Preview (30 แถว)", "แสดงทั้งหมด"], horizontal=True, key="view_overdue")
-            display_df_overdue = filtered_overdue.head(30) if "Preview" in view_overdue else filtered_overdue
-            
-            st.dataframe(display_df_overdue, use_container_width=True, height=500)
-            st.caption(f"โครงสร้างข้อมูลที่ถูกคัดกรอง: {filtered_overdue.shape[1]} คอลัมน์ x {filtered_overdue.shape[0]} แถว (จากข้อมูลตั้งต้น {df_overdue.shape[0]} แถว)")
+elif active == 'avail':
+    render_avail()
 
-# ==========================================
-# หน้าที่ 3: Credit Availability Dashboard
-# ==========================================
-elif page == "Credit Availability Dashboard":
-    st.title("Credit Availability Dashboard")
-    st.info("พื้นที่ว่างสำหรับสร้าง Dashboard อนาคต (Credit Availability)")
-    
-    if not st.session_state.data_processed:
-        st.warning("กรุณากลับไปที่เมนู 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
+elif active == 'overdue_dash':
+    st.markdown(
+        '<div class="dash-title-bar">'
+        '<div class="dash-title">Credit Overdue Dashboard</div>'
+        '<div class="dash-subtitle">Under construction</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.info("Credit Overdue Dashboard — under construction")
 
-# ==========================================
-# หน้าที่ 4: Credit Overdue Dashboard
-# ==========================================
-elif page == "Credit Overdue Dashboard":
-    st.title("Credit Overdue Dashboard")
-    st.info("พื้นที่ว่างสำหรับสร้าง Dashboard อนาคต (Credit Overdue)")
-    
-    if not st.session_state.data_processed:
-        st.warning("กรุณากลับไปที่เมนู 'Data Preview and Processing' เพื่ออัปโหลดและประมวลผลข้อมูลก่อนเข้าใช้งานส่วนนี้")
+elif active == 'monitoring':
+    st.markdown(
+        '<div class="dash-title-bar">'
+        '<div class="dash-title">Credit Monitoring</div>'
+        '<div class="dash-subtitle">Coming soon</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.info("Credit Monitoring — coming soon")
