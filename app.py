@@ -6,6 +6,7 @@ from styles import DASHBOARD_CSS, SIDEBAR_TOGGLE_HTML
 from views.view_loading   import render as render_loading
 from views.view_transform import render as render_transform
 from views.view_avail     import render as render_avail
+from views.view_overdue import render as render_overdue  
 
 st.set_page_config(page_title="Credit Automate Dashboard", layout="wide")
 
@@ -133,14 +134,7 @@ elif active == 'avail':
     render_avail()
 
 elif active == 'overdue_dash':
-    st.markdown(
-        '<div class="dash-title-bar">'
-        '<div class="dash-title">Credit Overdue Dashboard</div>'
-        '<div class="dash-subtitle">Under construction</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-    st.info("Credit Overdue Dashboard — under construction")
+    render_overdue()                                    # <-- แทนที่ st.info(...)
 
 elif active == 'monitoring':
     st.markdown(
