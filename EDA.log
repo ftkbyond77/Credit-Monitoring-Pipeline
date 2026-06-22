@@ -1,0 +1,846 @@
+2026-06-22 13:30:55 [INFO] 
+2026-06-22 13:30:55 [INFO] ======================================================================
+2026-06-22 13:30:55 [INFO]   EDA SESSION START
+2026-06-22 13:30:55 [INFO] ======================================================================
+2026-06-22 13:30:55 [INFO] Timestamp : 2026-06-22 13:30:55.699687
+2026-06-22 13:30:55 [INFO] Python    : 3.11.15 | packaged by Anaconda, Inc. | (main, Mar 11 2026, 17:12:15) [MSC v.1942 64 bit (AMD64)]
+2026-06-22 13:30:55 [INFO] Pandas    : 3.0.3
+2026-06-22 13:30:55 [INFO] Numpy     : 2.4.6
+2026-06-22 13:30:55 [INFO] 
+2026-06-22 13:30:55 [INFO] ======================================================================
+2026-06-22 13:30:55 [INFO]   FILE DISCOVERY
+2026-06-22 13:30:55 [INFO] ======================================================================
+2026-06-22 13:30:55 [INFO] Availability file : Credit Availability.xlsx
+2026-06-22 13:30:55 [INFO] Overdue file      : excel - 2026-06-16T083438.306.xlsx
+2026-06-22 13:30:55 [INFO] et_pipeline imported successfully
+2026-06-22 13:30:55 [INFO] 
+2026-06-22 13:30:55 [INFO] ======================================================================
+2026-06-22 13:30:55 [INFO]   LOADING CREDIT AVAILABILITY via et_pipeline
+2026-06-22 13:30:55 [INFO] ======================================================================
+2026-06-22 13:30:56 [INFO] Sheets found: ['2023', '2024', '2025', '2026', 'Sheet2']
+2026-06-22 13:30:56 [INFO] Valid sheets   : ['2023', '2024', '2025', '2026']
+2026-06-22 13:30:56 [INFO] Invalid sheets : ['Sheet2']
+2026-06-22 13:30:56 [INFO]   Sheet '2023' : raw=2047 final=2038 na_dropped=9
+2026-06-22 13:30:56 [INFO]   Sheet '2024' : raw=946 final=930 na_dropped=16
+2026-06-22 13:30:56 [INFO]   Sheet '2025' : raw=946 final=935 na_dropped=11
+2026-06-22 13:30:56 [INFO]   Sheet '2026' : raw=476 final=468 na_dropped=5
+2026-06-22 13:30:56 [INFO] df_avail combined shape: (4371, 23)
+2026-06-22 13:30:56 [INFO] 
+2026-06-22 13:30:56 [INFO] ======================================================================
+2026-06-22 13:30:56 [INFO]   LOADING CREDIT OVERDUE via et_pipeline
+2026-06-22 13:30:56 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] df_overdue shape: (54053, 10)
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   === EDA : CREDIT AVAILABILITY ===
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   OVERVIEW : Credit Availability
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] Shape          : (4371, 23)
+2026-06-22 13:31:01 [INFO] Columns        : ['SOURCE_SHEET', 'CUSTOMER_CODE', 'CUSTOMER_NAME', 'TYPE', 'CLEAN_CREDIT_MB', 'CURRENT_DEBT_MILLION_THB', 'EST_FURTHER_AMOUNT', 'DATE', 'ESTIMATE_AMOUNT', 'CCS', 'CCS_PRICE', 'MMA', 'MMA_PRICE', 'NBMA', 'NBMA_PRICE', 'IBMA', 'IBMA_PRICE', 'MAA', 'MAA_PRICE', 'HIGHER_ESTER', 'HIGHER_ESTER_PRICE', 'CURRENT_DEBT_MILLION_THB_PERCENT', 'EST_DEBT']
+2026-06-22 13:31:01 [INFO] Memory (MB)    : 2.38
+2026-06-22 13:31:01 [INFO] Duplicated rows: 82
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   SAMPLE (10 rows) : Credit Availability
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  SOURCE_SHEET  CUSTOMER_CODE                                      CUSTOMER_NAME     TYPE  CLEAN_CREDIT_MB  CURRENT_DEBT_MILLION_THB  EST_FURTHER_AMOUNT        DATE  ESTIMATE_AMOUNT  CCS CCS_PRICE    MMA MMA_PRICE  NBMA NBMA_PRICE  IBMA IBMA_PRICE   MAA MAA_PRICE HIGHER_ESTER HIGHER_ESTER_PRICE  CURRENT_DEBT_MILLION_THB_PERCENT  EST_DEBT
+0         2023           6901                    Mitsubishi Chemical Corporation  Monomer           3400.0                   563.274             0.00000  2023-12-01        563.27400  NaN     72.24    NaN     72.24   NaN        NaN   NaN        NaN   NaN       NaN          NaN                NaN                          0.165669       NaN
+1         2023        2000000                     MRT Resins (Thailand) Co.,Ltd.  Monomer             89.0                    48.387             8.66504  2023-12-01         57.05204  NaN      70.0   98.0     55.48  28.0       66.0  14.0       75.0   5.0      66.0          NaN                NaN                          0.543674       NaN
+2         2023        2000001                   Kansai Resin (Thailand) Co.,Ltd.  Monomer             50.0                    22.647             3.23400  2023-12-01         25.88100  NaN      75.0   14.0      76.0  14.0       75.0  14.0       80.0   NaN       NaN          NaN                NaN                          0.452940       NaN
+3         2023        2000002                    Siam Chemical Industry Co.,Ltd.  Monomer            175.0                    58.400             4.36056  2023-12-01         62.76056  NaN      70.0   24.0     55.69  28.0       72.0  14.0       72.0   NaN       NaN          NaN                NaN                          0.333714       NaN
+4         2023        2000004                             Allnex (Thailand) Ltd.  Monomer             21.0                    14.138             0.45500  2023-12-01         14.59300  NaN      70.0    0.0     53.03   7.0       65.0   NaN        NaN   NaN       NaN          NaN                NaN                          0.673238       NaN
+5         2023        2000006  Carbide Chemical (Thailand) Limited 0105503001078  Monomer            105.0                    91.684            27.69340  2023-12-01        119.37740  NaN      70.0  500.0      53.0   NaN        NaN   NaN        NaN  18.0      66.3          NaN                NaN                          0.873181       NaN
+6         2023        2000007                                       RPT Asia Ltd  Monomer             13.0                    12.975             2.01600  2023-12-01         14.99100  NaN      75.0   28.0      72.0   NaN        NaN   NaN        NaN   NaN       NaN          NaN                NaN                          0.998077       NaN
+7         2023        2000008                            VIV Interchem Co., Ltd.  Monomer            130.0                   107.175            10.03760  2023-12-01        117.21260  NaN      70.0  172.0      53.0  14.4       64.0   0.0       63.0   0.0      63.0          NaN                NaN                          0.824423       NaN
+8         2023        2000009                                 Qualimer Co., Ltd.  Monomer             40.0                    10.500             0.00000  2023-12-01         10.50000  NaN       NaN    NaN       NaN   0.0       66.0   0.0       66.0   NaN       NaN          NaN                NaN                          0.262500       NaN
+9         2023        2000010            ThaiPoly Acrylic Public Company Limited  Monomer            300.0                   206.262            26.06000  2023-12-01        232.32200  NaN      65.0  500.0     52.12   NaN        NaN   NaN        NaN   NaN       NaN          NaN                NaN                          0.687540       NaN
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DTYPES
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   SOURCE_SHEET                                  dtype=str          nulls=     0 (  0.0%)  unique=4
+2026-06-22 13:31:01 [INFO]   CUSTOMER_CODE                                 dtype=int64        nulls=     0 (  0.0%)  unique=82
+2026-06-22 13:31:01 [INFO]   CUSTOMER_NAME                                 dtype=str          nulls=     0 (  0.0%)  unique=100
+2026-06-22 13:31:01 [INFO]   TYPE                                          dtype=str          nulls=     0 (  0.0%)  unique=2
+2026-06-22 13:31:01 [INFO]   CLEAN_CREDIT_MB                               dtype=float64      nulls=     0 (  0.0%)  unique=71
+2026-06-22 13:31:01 [INFO]   CURRENT_DEBT_MILLION_THB                      dtype=float64      nulls=     0 (  0.0%)  unique=1928
+2026-06-22 13:31:01 [INFO]   EST_FURTHER_AMOUNT                            dtype=float64      nulls=     0 (  0.0%)  unique=265
+2026-06-22 13:31:01 [INFO]   DATE                                          dtype=object       nulls=     0 (  0.0%)  unique=64
+2026-06-22 13:31:01 [INFO]   ESTIMATE_AMOUNT                               dtype=float64      nulls=     0 (  0.0%)  unique=1539
+2026-06-22 13:31:01 [INFO]   CCS                                           dtype=object       nulls=  2984 ( 68.3%)  unique=45
+2026-06-22 13:31:01 [INFO]   CCS_PRICE                                     dtype=object       nulls=  2296 ( 52.5%)  unique=40
+2026-06-22 13:31:01 [INFO]   MMA                                           dtype=object       nulls=  3301 ( 75.5%)  unique=62
+2026-06-22 13:31:01 [INFO]   MMA_PRICE                                     dtype=object       nulls=  3009 ( 68.8%)  unique=57
+2026-06-22 13:31:01 [INFO]   NBMA                                          dtype=object       nulls=  3912 ( 89.5%)  unique=22
+2026-06-22 13:31:01 [INFO]   NBMA_PRICE                                    dtype=object       nulls=  3940 ( 90.1%)  unique=23
+2026-06-22 13:31:01 [INFO]   IBMA                                          dtype=object       nulls=  3967 ( 90.8%)  unique=15
+2026-06-22 13:31:01 [INFO]   IBMA_PRICE                                    dtype=object       nulls=  3964 ( 90.7%)  unique=22
+2026-06-22 13:31:01 [INFO]   MAA                                           dtype=object       nulls=  4037 ( 92.4%)  unique=26
+2026-06-22 13:31:01 [INFO]   MAA_PRICE                                     dtype=object       nulls=  4051 ( 92.7%)  unique=27
+2026-06-22 13:31:01 [INFO]   HIGHER_ESTER                                  dtype=object       nulls=  4280 ( 97.9%)  unique=5
+2026-06-22 13:31:01 [INFO]   HIGHER_ESTER_PRICE                            dtype=object       nulls=  4280 ( 97.9%)  unique=6
+2026-06-22 13:31:01 [INFO]   CURRENT_DEBT_MILLION_THB_PERCENT              dtype=float64      nulls=     0 (  0.0%)  unique=2030
+2026-06-22 13:31:01 [INFO]   EST_DEBT                                      dtype=float64      nulls=  2968 ( 67.9%)  unique=206
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   NUMERIC COLUMN STATISTICS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  --- CUSTOMER_CODE ---
+    count   : 4371
+    min     : 31.0000
+    max     : 9999001.0000
+    mean    : 1757270.0471
+    median  : 2000034.0000
+    std     : 1174019.8059
+    Q1      : 2000007.0000
+    Q3      : 2000762.0000
+    IQR     : 755.0000
+    skewness: 3.5598  (highly skewed)
+    kurtosis: 26.7859
+    zeros   : 0
+    negatives: 0
+    p1      : 31.0000
+    p5      : 181.0000
+    p25     : 2000007.0000
+    p50     : 2000034.0000
+    p75     : 2000762.0000
+    p90     : 2000990.0000
+    p95     : 2001078.0000
+    p99     : 9999001.0000
+2026-06-22 13:31:01 [INFO] 
+  --- CLEAN_CREDIT_MB ---
+    count   : 4371
+    min     : 0.0000
+    max     : 3400.0000
+    mean    : 97.0824
+    median  : 5.0000
+    std     : 421.1646
+    Q1      : 1.0000
+    Q3      : 24.0000
+    IQR     : 23.0000
+    skewness: 6.7147  (highly skewed)
+    kurtosis: 46.1230
+    zeros   : 453
+    negatives: 0
+    p1      : 0.0000
+    p5      : 0.0000
+    p25     : 1.0000
+    p50     : 5.0000
+    p75     : 24.0000
+    p90     : 135.0000
+    p95     : 325.0000
+    p99     : 3400.0000
+2026-06-22 13:31:01 [INFO] 
+  --- CURRENT_DEBT_MILLION_THB ---
+    count   : 4371
+    min     : 0.0000
+    max     : 783065.0000
+    mean    : 213.0153
+    median  : 0.6640
+    std     : 11845.2630
+    Q1      : 0.0000
+    Q3      : 7.1260
+    IQR     : 7.1260
+    skewness: 66.0880  (highly skewed)
+    kurtosis: 4368.7412
+    zeros   : 1648
+    negatives: 0
+    p1      : 0.0000
+    p5      : 0.0000
+    p25     : 0.0000
+    p50     : 0.6640
+    p75     : 7.1260
+    p90     : 47.5730
+    p95     : 113.8360
+    p99     : 954.9111
+2026-06-22 13:31:01 [INFO] 
+  --- EST_FURTHER_AMOUNT ---
+    count   : 4371
+    min     : 0.0000
+    max     : 10320000.0000
+    mean    : 67508.8853
+    median  : 0.0000
+    std     : 538550.1528
+    Q1      : 0.0000
+    Q3      : 1.8400
+    IQR     : 1.8400
+    skewness: 13.7514  (highly skewed)
+    kurtosis: 224.4232
+    zeros   : 2402
+    negatives: 0
+    p1      : 0.0000
+    p5      : 0.0000
+    p25     : 0.0000
+    p50     : 0.0000
+    p75     : 1.8400
+    p90     : 23.7960
+    p95     : 152.1000
+    p99     : 2080000.0000
+2026-06-22 13:31:01 [INFO] 
+  --- ESTIMATE_AMOUNT ---
+    count   : 4371
+    min     : 0.0000
+    max     : 86000.0000
+    mean    : 897.7863
+    median  : 0.0900
+    std     : 5635.2388
+    Q1      : 0.0000
+    Q3      : 8.3540
+    IQR     : 8.3540
+    skewness: 11.6024  (highly skewed)
+    kurtosis: 157.8853
+    zeros   : 2123
+    negatives: 0
+    p1      : 0.0000
+    p5      : 0.0000
+    p25     : 0.0000
+    p50     : 0.0900
+    p75     : 8.3540
+    p90     : 213.7700
+    p95     : 3500.0000
+    p99     : 20000.0000
+2026-06-22 13:31:01 [INFO] 
+  --- CURRENT_DEBT_MILLION_THB_PERCENT ---
+    count   : 4371
+    min     : 0.0000
+    max     : 230.3132
+    mean    : 0.2939
+    median  : 0.1667
+    std     : 3.4909
+    Q1      : 0.0000
+    Q3      : 0.4125
+    IQR     : 0.4125
+    skewness: 65.4942  (highly skewed)
+    kurtosis: 4316.4302
+    zeros   : 1648
+    negatives: 0
+    p1      : 0.0000
+    p5      : 0.0000
+    p25     : 0.0000
+    p50     : 0.1667
+    p75     : 0.4125
+    p90     : 0.6455
+    p95     : 0.7990
+    p99     : 0.9898
+2026-06-22 13:31:01 [INFO] 
+  --- EST_DEBT ---
+    count   : 1403
+    min     : 0.0000
+    max     : 1.0971
+    mean    : 0.0761
+    median  : 0.0000
+    std     : 0.1926
+    Q1      : 0.0000
+    Q3      : 0.0000
+    IQR     : 0.0000
+    skewness: 2.5147  (highly skewed)
+    kurtosis: 5.3914
+    zeros   : 1185
+    negatives: 0
+    p1      : 0.0000
+    p5      : 0.0000
+    p25     : 0.0000
+    p50     : 0.0000
+    p75     : 0.0000
+    p90     : 0.4124
+    p95     : 0.5591
+    p99     : 0.7682
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CATEGORICAL / OBJECT COLUMN STATISTICS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  --- SOURCE_SHEET ---
+    unique   : 4
+    nulls    : 0
+    top 20  : {'2023': 2038, '2025': 935, '2024': 930, '2026': 468}
+2026-06-22 13:31:01 [INFO] 
+  --- CUSTOMER_NAME ---
+    unique   : 100
+    nulls    : 0
+    top 20  : {'Mitsubishi Chemical Corporation': 120, 'ITOCHU (Thailand) Co.,Ltd.': 119, 'IVICT (Thailand) Co.,Ltd.': 118, 'SCG CEMENT-BUILDING MATERIALS  CO., LTD.': 62, 'MRT Resins (Thailand) Co.,Ltd.': 60, 'Kansai Resin (Thailand) Co.,Ltd.': 60, 'Allnex (Thailand) Ltd.': 60, 'RPT Asia Ltd': 60, 'VIV Interchem Co., Ltd.': 60, 'Qualimer Co., Ltd.': 60, 'ThaiPoly Acrylic Public Company Limited': 60, 'Marubeni Thailand Co., Ltd.': 60, 'Sojitz (Thailand) Co.,Ltd.': 60, 'Kasan Corporation Co., Ltd.': 60, 'NAGASE (Thailand) Co., Ltd.': 60, 'PTT Asahi Chemical Company Limited': 60, 'Toyo-Ink (Thailand) Co.,Ltd.': 60, 'CBC (Thailand) Co.,Ltd': 60, 'Pan Asia Industrial Limited': 60, 'Toyota Tsusho (Thailand) Co.,Ltd.': 60}
+2026-06-22 13:31:01 [INFO] 
+  --- TYPE ---
+    unique   : 2
+    nulls    : 0
+    top 20  : {'CCS': 2751, 'Monomer': 1620}
+2026-06-22 13:31:01 [INFO] 
+  --- DATE ---
+    unique   : 64
+    nulls    : 0
+    top 20  : {datetime.date(2025, 5, 1): 228, datetime.date(2024, 9, 1): 78, datetime.date(2024, 8, 1): 78, datetime.date(2024, 7, 1): 78, datetime.date(2024, 6, 1): 78, datetime.date(2024, 5, 1): 78, datetime.date(2024, 4, 1): 78, datetime.date(2024, 3, 1): 78, datetime.date(2025, 12, 1): 78, datetime.date(2025, 11, 1): 78, datetime.date(2025, 10, 1): 78, datetime.date(2025, 9, 1): 78, datetime.date(2025, 8, 1): 78, datetime.date(2025, 7, 3): 78, datetime.date(2025, 6, 1): 78, datetime.date(2026, 6, 1): 78, datetime.date(2026, 5, 1): 78, datetime.date(2026, 4, 1): 78, datetime.date(2026, 3, 1): 78, datetime.date(2026, 2, 1): 78}
+2026-06-22 13:31:01 [INFO] 
+  --- CCS ---
+    unique   : 45
+    nulls    : 2984
+    top 20  : {nan: 2984, 5.0: 232, 0.0: 197, 1.0: 142, 3.0: 111, 20.0: 99, 2.0: 77, 10.0: 70, 1.5: 41, 42.0: 39, 2.5: 35, 8.0: 27, 25.0: 25, 35.0: 23, 40.0: 23, 14.0: 18, 7200.0: 16, 6.5: 11, 100.0: 10, 108.0: 9}
+2026-06-22 13:31:01 [INFO] 
+  --- CCS_PRICE ---
+    unique   : 40
+    nulls    : 2296
+    top 20  : {nan: 2296, 160.0: 502, 185.0: 301, 70.0: 200, 95.0: 136, 115.0: 115, 75.0: 113, 0.0: 60, 98.0: 43, 110.0: 41, 90.0: 38, 85.0: 36, 72.24: 35, 83.0: 35, 140.0: 35, 65.0: 33, 92.0: 24, 180.0: 24, 117.0: 23, 105.0: 23}
+2026-06-22 13:31:01 [INFO] 
+  --- MMA ---
+    unique   : 62
+    nulls    : 3301
+    top 20  : {nan: 3301, 0.0: 213, 14.0: 96, 28.0: 68, 500.0: 52, 11.0: 45, 98.0: 44, 42.0: 42, 1.9: 32, 1600.0: 25, 70.0: 25, 300.0: 24, 20.0: 22, 72.0: 21, 200.0: 21, 800.0: 20, 35.0: 19, 100.0: 17, 24.0: 16, 7200.0: 16}
+2026-06-22 13:31:01 [INFO] 
+  --- MMA_PRICE ---
+    unique   : 57
+    nulls    : 3009
+    top 20  : {nan: 3009, 75.0: 174, 160.0: 141, 95.0: 90, 70.0: 88, 85.0: 82, 72.24: 52, 88.0: 43, 60.0: 40, 98.0: 39, 76.0: 38, 65.0: 33, 53.03: 28, 53.0: 25, 72.0: 24, 180.0: 24, 0.0: 23, 100.0: 21, 80.0: 21, 93.0: 19}
+2026-06-22 13:31:01 [INFO] 
+  --- NBMA ---
+    unique   : 22
+    nulls    : 3912
+    top 20  : {nan: 3912, 28.0: 91, 14.0: 62, 20.0: 45, 12.0: 34, 70.0: 31, 14.4: 22, 42.0: 21, 10.0: 20, 1000.0: 16, 56.0: 14, 28.8: 13, 7.0: 11, 9.0: 9, 18.0: 9, 10.8: 9, 5.4: 9, 0.0: 8, 77.0: 7, 110.0: 7}
+2026-06-22 13:31:01 [INFO] 
+  --- NBMA_PRICE ---
+    unique   : 23
+    nulls    : 3940
+    top 20  : {nan: 3940, 75.0: 56, 95.0: 56, 90.0: 44, 72.0: 30, 70.0: 28, 91.0: 26, 66.0: 25, 65.0: 24, 80.0: 17, 96.32: 16, 77.0: 16, 78.0: 14, 64.0: 10, 82.08684000000001: 9, 85.0: 9, 88.0: 9, 100.0: 9, 60: 9, 93.0: 8}
+2026-06-22 13:31:01 [INFO] 
+  --- IBMA ---
+    unique   : 15
+    nulls    : 3967
+    top 20  : {nan: 3967, 14.0: 125, 10.0: 50, 5.4: 48, 0.0: 46, 28.0: 28, 9.0: 18, 700.0: 16, 42.0: 14, 15.0: 14, 20.0: 11, 18.0: 11, 52.0: 7, 11.4: 6, 0.4: 6, 14.4: 4}
+2026-06-22 13:31:01 [INFO] 
+  --- IBMA_PRICE ---
+    unique   : 22
+    nulls    : 3964
+    top 20  : {nan: 3964, 95.0: 56, 75.0: 39, 72.0: 39, 80.0: 38, 63.0: 29, 91.0: 26, 90.0: 25, 66.0: 20, 96.32: 16, 78.0: 14, 70.0: 14, 65.0: 13, 64.0: 11, 76.0: 10, 82.08684000000001: 9, 85.0: 9, 88.0: 9, 100.0: 9, 60: 9}
+2026-06-22 13:31:01 [INFO] 
+  --- MAA ---
+    unique   : 26
+    nulls    : 4037
+    top 20  : {nan: 4037, 5.0: 45, 18.0: 45, 6.0: 38, 90.0: 30, 0.0: 29, 20.0: 22, 50.0: 20, 1600.0: 16, 300.0: 10, 2.0: 9, 252.0: 9, 500.0: 8, 9.0: 7, 4.0: 7, 10.0: 7, 30.0: 7, 400.0: 7, 250.0: 5, 238.0: 3}
+2026-06-22 13:31:01 [INFO] 
+  --- MAA_PRICE ---
+    unique   : 27
+    nulls    : 4051
+    top 20  : {nan: 4051, 75.0: 46, 63.0: 34, 90.0: 28, 95.0: 27, 66.0: 23, 70.0: 18, 85.0: 18, 60.0: 17, 98.04: 16, 80.0: 16, 66.3: 10, 83.13: 9, 85.644: 9, 93.0: 8, 91.0: 8, 86.0: 8, 65.0: 5, 62.63: 4, 45: 4}
+2026-06-22 13:31:01 [INFO] 
+  --- HIGHER_ESTER ---
+    unique   : 5
+    nulls    : 4280
+    top 20  : {nan: 4280, 16.0: 35, 2.0: 19, 32.0: 16, 40.0: 14, 5.0: 7}
+2026-06-22 13:31:01 [INFO] 
+  --- HIGHER_ESTER_PRICE ---
+    unique   : 6
+    nulls    : 4280
+    top 20  : {nan: 4280, 250.0: 30, 90.0: 16, 85.0: 16, 80.0: 14, 88.0: 9, 100: 6}
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DATE COLUMN STATISTICS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  --- SOURCE_SHEET ---
+    count   : 4371
+    min     : 2023-01-01 00:00:00
+    max     : 2026-01-01 00:00:00
+    range   : 1096 days
+    nulls   : 0
+2026-06-22 13:31:01 [INFO] 
+  --- DATE ---
+    count   : 4371
+    min     : 2021-07-23 00:00:00
+    max     : 2026-06-01 00:00:00
+    range   : 1774 days
+    nulls   : 0
+2026-06-22 13:31:01 [INFO] 
+  --- CCS ---
+    count   : 1387
+    min     : 1970-01-01 00:00:00
+    max     : 1970-01-01 00:00:00.000007200
+    range   : 0 days
+    nulls   : 2984
+2026-06-22 13:31:01 [INFO] 
+  --- CCS_PRICE ---
+    count   : 2075
+    min     : 1970-01-01 00:00:00
+    max     : 1970-01-01 00:00:00.000000185
+    range   : 0 days
+    nulls   : 2296
+2026-06-22 13:31:01 [INFO] 
+  --- MMA ---
+    count   : 1070
+    min     : 1970-01-01 00:00:00
+    max     : 1970-01-01 00:00:00.000007200
+    range   : 0 days
+    nulls   : 3301
+2026-06-22 13:31:01 [INFO] 
+  --- MMA_PRICE ---
+    count   : 1362
+    min     : 1970-01-01 00:00:00
+    max     : 1970-01-01 00:00:00.000000180
+    range   : 0 days
+    nulls   : 3009
+2026-06-22 13:31:01 [INFO] 
+  --- NBMA ---
+    count   : 459
+    min     : 1970-01-01 00:00:00
+    max     : 1970-01-01 00:00:00.000001
+    range   : 0 days
+    nulls   : 3912
+2026-06-22 13:31:01 [INFO] 
+  --- NBMA_PRICE ---
+    count   : 431
+    min     : 1970-01-01 00:00:00.000000060
+    max     : 1970-01-01 00:00:00.000000125
+    range   : 0 days
+    nulls   : 3940
+2026-06-22 13:31:01 [INFO] 
+  --- IBMA ---
+    count   : 404
+    min     : 1970-01-01 00:00:00
+    max     : 1970-01-01 00:00:00.000000700
+    range   : 0 days
+    nulls   : 3967
+2026-06-22 13:31:01 [INFO] 
+  --- IBMA_PRICE ---
+    count   : 407
+    min     : 1970-01-01 00:00:00.000000060
+    max     : 1970-01-01 00:00:00.000000100
+    range   : 0 days
+    nulls   : 3964
+2026-06-22 13:31:01 [INFO] 
+  --- MAA ---
+    count   : 334
+    min     : 1970-01-01 00:00:00
+    max     : 1970-01-01 00:00:00.000001600
+    range   : 0 days
+    nulls   : 4037
+2026-06-22 13:31:01 [INFO] 
+  --- MAA_PRICE ---
+    count   : 320
+    min     : 1970-01-01 00:00:00.000000045
+    max     : 1970-01-01 00:00:00.000000098
+    range   : 0 days
+    nulls   : 4051
+2026-06-22 13:31:01 [INFO] 
+  --- HIGHER_ESTER ---
+    count   : 91
+    min     : 1970-01-01 00:00:00.000000002
+    max     : 1970-01-01 00:00:00.000000040
+    range   : 0 days
+    nulls   : 4280
+2026-06-22 13:31:01 [INFO] 
+  --- HIGHER_ESTER_PRICE ---
+    count   : 91
+    min     : 1970-01-01 00:00:00.000000080
+    max     : 1970-01-01 00:00:00.000000250
+    range   : 0 days
+    nulls   : 4280
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   OUTLIER ANALYSIS (IQR method)
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CUSTOMER_CODE                                 outliers=  792 ( 18.1%)  fence=[1998874.500, 2001894.500]
+2026-06-22 13:31:01 [INFO]   CLEAN_CREDIT_MB                               outliers=  734 ( 16.8%)  fence=[-33.500, 58.500]
+2026-06-22 13:31:01 [INFO]   CURRENT_DEBT_MILLION_THB                      outliers=  732 ( 16.7%)  fence=[-10.689, 17.815]
+2026-06-22 13:31:01 [INFO]   EST_FURTHER_AMOUNT                            outliers=  779 ( 17.8%)  fence=[-2.760, 4.600]
+2026-06-22 13:31:01 [INFO]   ESTIMATE_AMOUNT                               outliers=  829 ( 19.0%)  fence=[-12.531, 20.885]
+2026-06-22 13:31:01 [INFO]   CURRENT_DEBT_MILLION_THB_PERCENT              outliers=   20 (  0.5%)  fence=[-0.619, 1.031]
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DISTRIBUTION SHAPE DIAGNOSIS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CUSTOMER_CODE                                 skew=   3.56  cv=  0.67  zero%=  0.0  neg%=  0.0  issues=['HIGHLY_SKEWED']
+2026-06-22 13:31:01 [INFO]   CLEAN_CREDIT_MB                               skew=   6.71  cv=  4.34  zero%= 10.4  neg%=  0.0  issues=['HIGHLY_SKEWED', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO]   CURRENT_DEBT_MILLION_THB                      skew=  66.09  cv= 55.61  zero%= 37.7  neg%=  0.0  issues=['HIGHLY_SKEWED', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO]   EST_FURTHER_AMOUNT                            skew=  13.75  cv=  7.98  zero%= 55.0  neg%=  0.0  issues=['HIGHLY_SKEWED', 'ZERO_HEAVY', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO]   ESTIMATE_AMOUNT                               skew=  11.60  cv=  6.28  zero%= 48.6  neg%=  0.0  issues=['HIGHLY_SKEWED', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO]   CURRENT_DEBT_MILLION_THB_PERCENT              skew=  65.49  cv= 11.88  zero%= 37.7  neg%=  0.0  issues=['HIGHLY_SKEWED', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO]   EST_DEBT                                      skew=   2.51  cv=  2.53  zero%= 84.5  neg%=  0.0  issues=['HIGHLY_SKEWED', 'ZERO_HEAVY', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CORRELATION MATRIX (numeric columns)
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+                                  CUSTOMER_CODE  CLEAN_CREDIT_MB  CURRENT_DEBT_MILLION_THB  EST_FURTHER_AMOUNT  ESTIMATE_AMOUNT  CURRENT_DEBT_MILLION_THB_PERCENT  EST_DEBT
+CUSTOMER_CODE                             1.000           -0.186                    -0.025               0.020            0.027                            -0.013     0.076
+CLEAN_CREDIT_MB                          -0.186            1.000                     0.131               0.002           -0.019                             0.125     0.009
+CURRENT_DEBT_MILLION_THB                 -0.025            0.131                     1.000               0.022           -0.003                             0.997     0.071
+EST_FURTHER_AMOUNT                        0.020            0.002                     0.022               1.000            0.740                             0.019     0.303
+ESTIMATE_AMOUNT                           0.027           -0.019                    -0.003               0.740            1.000                            -0.004     0.108
+CURRENT_DEBT_MILLION_THB_PERCENT         -0.013            0.125                     0.997               0.019           -0.004                             1.000     0.259
+EST_DEBT                                  0.076            0.009                     0.071               0.303            0.108                             0.259     1.000
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DATA SCIENCE RECOMMENDATIONS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  CUSTOMER_CODE:
+2026-06-22 13:31:01 [INFO]     -> RIGHT_SKEW: แนะนำ log1p transform หรือ sqrt transform
+2026-06-22 13:31:01 [INFO] 
+  CLEAN_CREDIT_MB:
+2026-06-22 13:31:01 [INFO]     -> RIGHT_SKEW: แนะนำ log1p transform หรือ sqrt transform
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+  CURRENT_DEBT_MILLION_THB:
+2026-06-22 13:31:01 [INFO]     -> RIGHT_SKEW: แนะนำ log1p transform หรือ sqrt transform
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+  EST_FURTHER_AMOUNT:
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+  ESTIMATE_AMOUNT:
+2026-06-22 13:31:01 [INFO]     -> RIGHT_SKEW: แนะนำ log1p transform หรือ sqrt transform
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+  CURRENT_DEBT_MILLION_THB_PERCENT:
+2026-06-22 13:31:01 [INFO]     -> RIGHT_SKEW: แนะนำ log1p transform หรือ sqrt transform
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+  EST_DEBT:
+2026-06-22 13:31:01 [INFO]     -> ZERO_HEAVY (>70%): พิจารณา binary flag + model โดยแยก zero vs non-zero
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   PER-SHEET STATISTICS (Availability)
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   Sheet '2023' : rows=2038  unique_customers=79
+2026-06-22 13:31:01 [INFO]     CURRENT_DEBT: mean=423.26  median=0.74  max=783065.00  skew=45.13
+2026-06-22 13:31:01 [INFO]     ESTIMATE_AMOUNT: mean=1886.28  median=0.00  max=86000.00  skew=7.90
+2026-06-22 13:31:01 [INFO]   Sheet '2024' : rows=930  unique_customers=74
+2026-06-22 13:31:01 [INFO]     CURRENT_DEBT: mean=33.36  median=0.71  max=2365.68  skew=9.07
+2026-06-22 13:31:01 [INFO]     ESTIMATE_AMOUNT: mean=38.07  median=1.26  max=2365.68  skew=8.52
+2026-06-22 13:31:01 [INFO]   Sheet '2025' : rows=935  unique_customers=75
+2026-06-22 13:31:01 [INFO]     CURRENT_DEBT: mean=26.92  median=0.56  max=1203.47  skew=7.68
+2026-06-22 13:31:01 [INFO]     ESTIMATE_AMOUNT: mean=32.13  median=1.39  max=1203.47  skew=6.93
+2026-06-22 13:31:01 [INFO]   Sheet '2026' : rows=468  unique_customers=75
+2026-06-22 13:31:01 [INFO]     CURRENT_DEBT: mean=26.25  median=0.62  max=1062.22  skew=7.55
+2026-06-22 13:31:01 [INFO]     ESTIMATE_AMOUNT: mean=31.06  median=1.41  max=1062.22  skew=6.82
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   === EDA : CREDIT OVERDUE ===
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   OVERVIEW : Credit Overdue
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] Shape          : (54053, 10)
+2026-06-22 13:31:01 [INFO] Columns        : ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount']
+2026-06-22 13:31:01 [INFO] Memory (MB)    : 8.06
+2026-06-22 13:31:01 [INFO] Duplicated rows: 0
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   SAMPLE (10 rows) : Credit Overdue
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+   CompanyCode  Customer               CustomerName  InvoiceDocument OriginalDueDate CollectionDate CustomerDueDate ChequeReceivingDate  OverdueAmount  InvoiceAmount
+0         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007815               #       20210530               #                   #            0.0       24434.89
+1         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007816               #       20210530               #                   #            0.0        3771.05
+2         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007817               #       20210530               #                   #            0.0       22577.43
+3         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007818               #       20210530               #                   #            0.0       28213.17
+4         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007819               #       20210530               #                   #            0.0       18808.78
+5         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007821               #       20210530               #                   #            0.0       26297.18
+6         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007822               #       20210530               #                   #            0.0        7542.11
+7         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007824               #       20210530               #                   #            0.0       20666.25
+8         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007825               #       20210530               #                   #            0.0       24437.30
+9         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007826               #       20210530               #                   #            0.0        9404.39
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DTYPES
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CompanyCode                                   dtype=int64        nulls=     0 (  0.0%)  unique=2
+2026-06-22 13:31:01 [INFO]   Customer                                      dtype=int64        nulls=     0 (  0.0%)  unique=246
+2026-06-22 13:31:01 [INFO]   CustomerName                                  dtype=str          nulls=     0 (  0.0%)  unique=237
+2026-06-22 13:31:01 [INFO]   InvoiceDocument                               dtype=int64        nulls=     0 (  0.0%)  unique=53970
+2026-06-22 13:31:01 [INFO]   OriginalDueDate                               dtype=str          nulls=     0 (  0.0%)  unique=2485
+2026-06-22 13:31:01 [INFO]   CollectionDate                                dtype=str          nulls=     0 (  0.0%)  unique=2065
+2026-06-22 13:31:01 [INFO]   CustomerDueDate                               dtype=str          nulls=     0 (  0.0%)  unique=1803
+2026-06-22 13:31:01 [INFO]   ChequeReceivingDate                           dtype=str          nulls=     0 (  0.0%)  unique=1
+2026-06-22 13:31:01 [INFO]   OverdueAmount                                 dtype=float64      nulls=     0 (  0.0%)  unique=1255
+2026-06-22 13:31:01 [INFO]   InvoiceAmount                                 dtype=float64      nulls=     0 (  0.0%)  unique=40105
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   NUMERIC COLUMN STATISTICS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  --- CompanyCode ---
+    count   : 54053
+    min     : 1190.0000
+    max     : 6130.0000
+    mean    : 1639.0078
+    median  : 1190.0000
+    std     : 1420.0450
+    Q1      : 1190.0000
+    Q3      : 1190.0000
+    IQR     : 0.0000
+    skewness: 2.8465  (highly skewed)
+    kurtosis: 6.1027
+    zeros   : 0
+    negatives: 0
+    p1      : 1190.0000
+    p5      : 1190.0000
+    p25     : 1190.0000
+    p50     : 1190.0000
+    p75     : 1190.0000
+    p90     : 1190.0000
+    p95     : 6130.0000
+    p99     : 6130.0000
+2026-06-22 13:31:01 [INFO] 
+  --- Customer ---
+    count   : 54053
+    min     : 31.0000
+    max     : 9999004.0000
+    mean    : 1539520.9414
+    median  : 2000028.0000
+    std     : 917736.5252
+    Q1      : 2000000.0000
+    Q3      : 2000036.0000
+    IQR     : 36.0000
+    skewness: 0.3586  (normal-ish)
+    kurtosis: 11.4347
+    zeros   : 0
+    negatives: 0
+    p1      : 31.0000
+    p5      : 6901.0000
+    p25     : 2000000.0000
+    p50     : 2000028.0000
+    p75     : 2000036.0000
+    p90     : 2000826.0000
+    p95     : 2000967.0000
+    p99     : 2001096.0000
+2026-06-22 13:31:01 [INFO] 
+  --- InvoiceDocument ---
+    count   : 54053
+    min     : 2880000000.0000
+    max     : 3388800301.0000
+    mean    : 2926062316.0120
+    median  : 2880028543.0000
+    std     : 144196259.6022
+    Q1      : 2880014729.0000
+    Q3      : 2881003696.0000
+    IQR     : 988967.0000
+    skewness: 2.8463  (highly skewed)
+    kurtosis: 6.1033
+    zeros   : 0
+    negatives: 0
+    p1      : 2880000581.5200
+    p5      : 2880003111.6000
+    p25     : 2880014729.0000
+    p50     : 2880028543.0000
+    p75     : 2881003696.0000
+    p90     : 2888000082.8000
+    p95     : 3380003077.4000
+    p99     : 3388000487.4800
+2026-06-22 13:31:01 [INFO] 
+  --- OverdueAmount ---
+    count   : 54053
+    min     : -735473.1200
+    max     : 194284696.8400
+    mean    : 41192.5150
+    median  : 0.0000
+    std     : 1471164.6140
+    Q1      : 0.0000
+    Q3      : 0.0000
+    IQR     : 0.0000
+    skewness: 106.6163  (highly skewed)
+    kurtosis: 12257.1469
+    zeros   : 52598
+    negatives: 25
+    p1      : 0.0000
+    p5      : 0.0000
+    p25     : 0.0000
+    p50     : 0.0000
+    p75     : 0.0000
+    p90     : 0.0000
+    p95     : 0.0000
+    p99     : 1077700.6456
+2026-06-22 13:31:01 [INFO] 
+  --- InvoiceAmount ---
+    count   : 54053
+    min     : -46301302.6000
+    max     : 332860817.7700
+    mean    : 2145849.0153
+    median  : 667680.0000
+    std     : 13362730.7166
+    Q1      : 107759.7000
+    Q3      : 1239556.1900
+    IQR     : 1131796.4900
+    skewness: 13.1227  (highly skewed)
+    kurtosis: 192.4627
+    zeros   : 13
+    negatives: 1020
+    p1      : -43873.0412
+    p5      : 6184.1640
+    p25     : 107759.7000
+    p50     : 667680.0000
+    p75     : 1239556.1900
+    p90     : 2172135.9940
+    p95     : 3619487.1680
+    p99     : 23587115.7048
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CATEGORICAL / OBJECT COLUMN STATISTICS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  --- CustomerName ---
+    unique   : 237
+    nulls    : 0
+    top 20  : {'IVICT (Thailand) Company Limited': 12653, 'MITSUBISHI CHEMICAL CORPORATION': 9596, 'Itochu (Thailand)  Ltd.': 2057, 'Carbide Chemical (Thailand) Limited': 2052, 'ห้างหุ้นส่วนจำกัด เพียรพาณิชย์': 1791, 'Thai polyacrylic Public Company Lim': 1509, 'Bangkok Synthetics Co., Ltd.': 1450, 'SCG DISTRIBUTION CO.,LTD.': 1305, 'VIV INTERCHEM CO.,LTD.': 1212, 'บริษัท โตโยต้า ทูโช (ไทยแลนด์) จำกั': 1124, 'MRT Resins Thailand Co.,Ltd.': 1079, 'บริษัท ไบรเทน โปลีเทรดดิ้ง จำกัด': 1032, 'บริษัท บี.พี.(บุญนำพา) รุ่งเรือง จำ': 835, 'บจ.ศรีไทยซุปเปอร์แวร์ โคราช': 790, 'DIC Siam Chemical Industry Co.,Ltd.': 653, ' ห้างหุ้นส่วนจำกัดพูลผล พลาสแพค': 622, 'บริษัท เอสพี กันสาด จำกัด': 601, 'บริษัท ยูไลท์ (ประเทศไทย) จำกัด': 530, 'Sojitz (Thailand) Co.,Ltd.': 517, 'Allnex (Thailand) Ltd': 454}
+2026-06-22 13:31:01 [INFO] 
+  --- OriginalDueDate ---
+    unique   : 2485
+    nulls    : 0
+    top 20  : {'#': 3449, '20260530': 467, '20241130': 461, '20250730': 461, '20251230': 460, '20240730': 455, '20250930': 452, '20250830': 449, '20251030': 447, '20260130': 447, '20260430': 445, '20250530': 428, '20241230': 421, '20231030': 418, '20260228': 414, '20220430': 411, '20250130': 411, '20240430': 404, '20260630': 403, '20230730': 402}
+2026-06-22 13:31:01 [INFO] 
+  --- CollectionDate ---
+    unique   : 2065
+    nulls    : 0
+    top 20  : {'20251201': 459, '20240530': 430, '20231130': 423, '20260302': 420, '20220530': 419, '20260530': 399, '20250530': 393, '20240830': 386, '20210830': 383, '20250830': 374, '20241130': 365, '20210531': 348, '20250303': 339, '20230830': 337, '20201130': 328, '20221130': 328, '20230530': 314, '20240302': 307, '20200831': 296, '20220830': 295}
+2026-06-22 13:31:01 [INFO] 
+  --- CustomerDueDate ---
+    unique   : 1803
+    nulls    : 0
+    top 20  : {'#': 3449, '20251201': 456, '20240530': 419, '20231130': 418, '20220530': 412, '20260302': 407, '20260530': 385, '20240830': 374, '20250530': 373, '20250830': 371, '20210830': 359, '20241130': 350, '20210531': 341, '20250303': 338, '20230830': 324, '20201130': 323, '20221130': 316, '20240302': 307, '20230530': 304, '20200831': 292}
+2026-06-22 13:31:01 [INFO] 
+  --- ChequeReceivingDate ---
+    unique   : 1
+    nulls    : 0
+    top 20  : {'#': 54053}
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DATE COLUMN STATISTICS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  --- CollectionDate ---
+    count   : 54053
+    min     : 2019-11-07 00:00:00
+    max     : 2026-12-08 00:00:00
+    range   : 2588 days
+    nulls   : 0
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   OUTLIER ANALYSIS (IQR method)
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   Customer                                      outliers=24220 ( 44.8%)  fence=[1999946.000, 2000090.000]
+2026-06-22 13:31:01 [INFO]   InvoiceDocument                               outliers= 6618 ( 12.2%)  fence=[2878531278.500, 2882487146.500]
+2026-06-22 13:31:01 [INFO]   InvoiceAmount                                 outliers= 3627 (  6.7%)  fence=[-1589935.035, 2937250.925]
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DISTRIBUTION SHAPE DIAGNOSIS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CompanyCode                                   skew=   2.85  cv=  0.87  zero%=  0.0  neg%=  0.0  issues=['HIGHLY_SKEWED']
+2026-06-22 13:31:01 [INFO]   Customer                                      skew=   0.36  cv=  0.60  zero%=  0.0  neg%=  0.0  issues=['OK']
+2026-06-22 13:31:01 [INFO]   InvoiceDocument                               skew=   2.85  cv=  0.05  zero%=  0.0  neg%=  0.0  issues=['HIGHLY_SKEWED']
+2026-06-22 13:31:01 [INFO]   OverdueAmount                                 skew= 106.62  cv= 35.71  zero%= 97.3  neg%=  0.0  issues=['HIGHLY_SKEWED', 'ZERO_HEAVY', 'HAS_NEGATIVES', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO]   InvoiceAmount                                 skew=  13.12  cv=  6.23  zero%=  0.0  neg%=  1.9  issues=['HIGHLY_SKEWED', 'HAS_NEGATIVES', 'HIGH_VARIANCE', 'EXTREME_OUTLIER']
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   CORRELATION MATRIX (numeric columns)
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+                 CompanyCode  Customer  InvoiceDocument  OverdueAmount  InvoiceAmount
+CompanyCode            1.000     0.119            1.000         -0.002         -0.033
+Customer               0.119     1.000            0.115         -0.015         -0.176
+InvoiceDocument        1.000     0.115            1.000         -0.002         -0.033
+OverdueAmount         -0.002    -0.015           -0.002          1.000          0.106
+InvoiceAmount         -0.033    -0.176           -0.033          0.106          1.000
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   DATA SCIENCE RECOMMENDATIONS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] 
+  CompanyCode:
+2026-06-22 13:31:01 [INFO]     -> RIGHT_SKEW: แนะนำ log1p transform หรือ sqrt transform
+2026-06-22 13:31:01 [INFO] 
+  Customer:
+2026-06-22 13:31:01 [INFO]     -> OK: ไม่จำเป็นต้อง transform
+2026-06-22 13:31:01 [INFO] 
+  InvoiceDocument:
+2026-06-22 13:31:01 [INFO]     -> RIGHT_SKEW: แนะนำ log1p transform หรือ sqrt transform
+2026-06-22 13:31:01 [INFO] 
+  OverdueAmount:
+2026-06-22 13:31:01 [INFO]     -> HAS_NEGATIVES: พิจารณา abs() หรือ separate negative/positive
+2026-06-22 13:31:01 [INFO]     -> ZERO_HEAVY (>70%): พิจารณา binary flag + model โดยแยก zero vs non-zero
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+  InvoiceAmount:
+2026-06-22 13:31:01 [INFO]     -> HAS_NEGATIVES: พิจารณา abs() หรือ separate negative/positive
+2026-06-22 13:31:01 [INFO]     -> EXTREME_OUTLIER: พิจารณา winsorize (clip) ที่ p95 หรือ p99
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   OVERDUE SPECIFIC ANALYSIS
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] CompanyCode distribution:
+CompanyCode
+1190    49140
+6130     4913
+2026-06-22 13:31:01 [INFO] 
+OverdueAmount sign breakdown:
+  negative (<0) = 25  (0.0%)
+  zero (=0)     = 52598 (97.3%)
+  positive (>0) = 1430  (2.6%)
+  SCG convention: overdue = OverdueAmount <= 0
+2026-06-22 13:31:01 [INFO] 
+DPD (Days Past Due) from OriginalDueDate:
+  count   : 50604
+  min     : 0
+  max     : 2395
+  mean    : 1063.5
+  median  : 1027.0
+  p75     : 1635.0
+  p90     : 2030.0
+  p99     : 2328.0
+  skewness: 0.15
+
+DPD bucket distribution:
+  Current (0d)   : 1268
+  1-30d          : 765
+  31-60d         : 784
+  61-90d         : 716
+  91-180d        : 2248
+  181-360d       : 4526
+  360+d          : 40297
+2026-06-22 13:31:01 [INFO] 
+Customer Overdue Concentration:
+  total overdue customers : 244
+  total overdue amount    : 6,609,740.58 THB
+  top 1 customer share    : 94.3%
+  top 10 customer share   : 100.0%
+
+Top 20 customers by overdue:
+Customer
+6901       6234112.22
+2000036     165478.07
+2000994      58661.68
+2000023      40503.01
+2000699      39908.07
+2000827      29740.65
+2000819      25840.50
+2000010      15496.38
+181              0.00
+821              0.00
+1051             0.00
+401              0.00
+1191             0.00
+1321             0.00
+471              0.00
+472              0.00
+811              0.00
+31               0.00
+101              0.00
+1161             0.00
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   JOIN FEASIBILITY CHECK
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   avail CUSTOMER_CODE unique : 82
+  overdue Customer unique    : 246
+  MATCHED                    : 75 (30.5%)
+  NOT matched (overdue only) : 171
+  matched sample             : [np.int64(31), np.int64(91), np.int64(101), np.int64(181), np.int64(811), np.int64(1051), np.int64(1161), np.int64(1541), np.int64(2221), np.int64(6141), np.int64(6901), np.int64(2000000), np.int64(2000001), np.int64(2000002), np.int64(2000003)]
+  unmatched sample           : [np.int64(111), np.int64(401), np.int64(471), np.int64(472), np.int64(821), np.int64(1191), np.int64(1321), np.int64(3282), np.int64(4781), np.int64(5261), np.int64(5941), np.int64(6142), np.int64(6651), np.int64(6652), np.int64(7851)]
+2026-06-22 13:31:01 [INFO] 
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO]   EDA SESSION COMPLETE
+2026-06-22 13:31:01 [INFO] ======================================================================
+2026-06-22 13:31:01 [INFO] Log saved to: D:\Code-Code\Project-1\EDA.log

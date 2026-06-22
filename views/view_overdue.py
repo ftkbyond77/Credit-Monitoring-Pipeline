@@ -11,6 +11,7 @@
 # =============================================================================
 
 import streamlit as st
+from streamlit_echarts import st_echarts
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -64,16 +65,12 @@ def render():
     if not st.session_state.get("data_processed", False):
         _no_data_banner()
         return
-
     raw_overdue = st.session_state.get("df_overdue")
     if raw_overdue is None or (hasattr(raw_overdue, "empty") and raw_overdue.empty):
         st.warning("df_overdue is empty. Please re-process the data pipeline.")
         return
-
     df_avail_full = st.session_state.get("df_avail")
-    df_all = _prepare_overdue(raw_overdue.copy())
-
-    # Title
+    df_all        = _prepare_overdue(raw_overdue.copy())
     st.markdown(
         dash_title_bar(
             "Credit Overdue Dashboard",
@@ -81,25 +78,17 @@ def render():
         ),
         unsafe_allow_html=True,
     )
-
-    # ------------------------------------------------------------------
-    # Main Filter bar  (granularity ไม่อยู่ที่นี่แล้ว)
-    # ------------------------------------------------------------------
     df_filtered, selected_company, period_label_str = _render_filters(df_all)
-
     if df_filtered is None or df_filtered.empty:
         st.warning("No data available for the selected filters.")
         return
-
     df_company_all = df_all[df_all["CompanyCode"] == selected_company].copy()
-
     # ------------------------------------------------------------------
-    # Section 1 : KPI
+    # Section 1 : KPI Row
     # ------------------------------------------------------------------
     st.markdown(section_header("Key Metrics"), unsafe_allow_html=True)
     _render_kpi_row(df_filtered)
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-
     # ------------------------------------------------------------------
     # Section 2 : Priority Monitoring (60%) | Risk Matrix (40%)
     # ------------------------------------------------------------------
@@ -111,48 +100,48 @@ def render():
     with col_priority:
         _render_top_overdue_bar(df_filtered)
     with col_risk:
-        _render_risk_matrix(df_filtered)
-
+        _render_risk_matrix(df_filtered, df_avail_full)
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-
     # ------------------------------------------------------------------
-    # Section 2b : Linked Bubble
+    # Section 3 : Aging Distribution
     # ------------------------------------------------------------------
     st.markdown(
-        section_header("Customer Debt vs Overdue Exposure (Linked with Credit Availability)"),
+        section_header("Aging Distribution — Current Debt by DPD Bucket"),
         unsafe_allow_html=True,
     )
-    _render_linked_bubble(df_filtered, df_avail_full)
-
+    _render_exposure_utilization(df_filtered, df_avail_full)
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-
     # ------------------------------------------------------------------
-    # Section 3 : Aging Analysis
-    # Granularity selector อยู่ที่นี่ — ใกล้ chart ที่ใช้มัน
+    # Section 4 : Overdue Velocity
+    # ------------------------------------------------------------------
+    st.markdown(
+        section_header("Overdue Velocity — Who Is Getting Worse"),
+        unsafe_allow_html=True,
+    )
+    _render_overdue_velocity(df_filtered)
+    st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
+    # ------------------------------------------------------------------
+    # Section 5 : Aging Analysis & Trend
+    # Period Granularity selector วางที่นี่ ใช้กับ Section 5 เป็นต้นไป
     # ------------------------------------------------------------------
     st.markdown(section_header("Aging Analysis & Trend"), unsafe_allow_html=True)
-
-    # --- Granularity selector ตรงนี้ ชิดซ้าย ไม่เต็ม row ---
-    gran_col, gran_space = st.columns([1, 4])
+    gran_col, _ = st.columns([1, 4])
     with gran_col:
-        granularity = st.selectbox(
+        granularity_vel = st.selectbox(
             "Period Granularity",
             options=["Monthly", "Weekly", "Daily", "Yearly"],
             index=0,
-            key="od_gran",
-            help="ใช้สำหรับ grouping แกน X ของ Aging และ Trend charts ด้านล่างนี้",
+            key="od_gran_vel",
+            help="Granularity for Aging Analysis and subsequent charts",
         )
-
-    col_aging_dist, col_aging_trend = st.columns(2, gap="medium")
-    with col_aging_dist:
-        _render_aging_bucket(df_company_all, granularity)
-    with col_aging_trend:
-        _render_aging_trend(df_company_all, granularity)
-
+    col_trend, col_panel = st.columns([3, 2], gap="medium")
+    with col_trend:
+        cust_meta = _render_overdue_trend(df_filtered, granularity_vel)
+    with col_panel:
+        _render_trend_summary_panel(cust_meta or {})
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-
     # ------------------------------------------------------------------
-    # Section 4 : Portfolio Concentration
+    # Section 6 : Portfolio Concentration — Pareto | Treemap
     # ------------------------------------------------------------------
     st.markdown(section_header("Portfolio Concentration"), unsafe_allow_html=True)
     col_pareto, col_tree = st.columns(2, gap="medium")
@@ -160,11 +149,9 @@ def render():
         _render_pareto(df_filtered)
     with col_tree:
         _render_treemap(df_filtered)
-
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-
     # ------------------------------------------------------------------
-    # Raw table
+    # Section 7 : Raw Overdue Records (expandable)
     # ------------------------------------------------------------------
     with st.expander("View All Overdue Records — Selected Period", expanded=False):
         _render_priority_table(df_filtered)
@@ -697,506 +684,1149 @@ def _render_top_overdue_bar(df: pd.DataFrame, top_n: int = 12):
     st.plotly_chart(fig, use_container_width=True, key="chart_priority_bar")
 
 
+def _join_avail(
+    agg: pd.DataFrame,
+    df_avail: pd.DataFrame,
+    extra_cols: list = None,
+) -> pd.DataFrame:
+    """
+    Join overdue agg กับ credit avail แบบ simple exact match
+      - overdue.Customer (int) == avail.CUSTOMER_CODE (int)
+      - ถ้า year match ได้ก็ดี ถ้าไม่ match ใช้ latest snapshot
+      - ถ้า Customer ไม่มีใน avail เลย → NaN (ปล่อยไว้ ไม่ต้อง force)
+    """
+    if df_avail is None or df_avail.empty:
+        return agg
+
+    # columns ที่ต้องการจาก avail
+    want_data = ["CURRENT_DEBT_MILLION_THB"]
+    if extra_cols:
+        want_data += [c for c in extra_cols if c not in want_data]
+
+    # ------------------------------------------------------------------
+    # Prepare avail — cast types ให้ตรง
+    # ------------------------------------------------------------------
+    avail = df_avail.copy()
+    avail["SOURCE_SHEET"]  = avail["SOURCE_SHEET"].astype(str).str.strip()
+    avail["CUSTOMER_CODE"] = (
+        pd.to_numeric(avail["CUSTOMER_CODE"], errors="coerce")
+        .fillna(0).astype(int)
+    )
+
+    # latest snapshot per (CUSTOMER_CODE, SOURCE_SHEET)
+    if "DATE" in avail.columns:
+        avail = (
+            avail.sort_values("DATE", ascending=False)
+            .drop_duplicates(subset=["CUSTOMER_CODE", "SOURCE_SHEET"])
+        )
+    else:
+        avail = avail.drop_duplicates(subset=["CUSTOMER_CODE", "SOURCE_SHEET"])
+
+    # เลือกเฉพาะ column ที่ต้องการ
+    keep = ["CUSTOMER_CODE", "SOURCE_SHEET"] + [
+        c for c in want_data if c in avail.columns
+    ]
+    avail = avail[keep].copy().reset_index(drop=True)
+
+    # ------------------------------------------------------------------
+    # Prepare agg — cast Customer → int
+    # ------------------------------------------------------------------
+    agg = agg.reset_index(drop=True).copy()
+    agg["Customer"] = (
+        pd.to_numeric(agg["Customer"], errors="coerce")
+        .fillna(0).astype(int)
+    )
+    agg["_year"] = agg["DueYear"].astype(str).str.strip()
+
+    # ------------------------------------------------------------------
+    # Step 1 : Year-matched join
+    # ------------------------------------------------------------------
+    result = agg.merge(
+        avail,
+        left_on=["Customer", "_year"],
+        right_on=["CUSTOMER_CODE", "SOURCE_SHEET"],
+        how="left",
+    ).reset_index(drop=True)
+
+    # drop avail key columns
+    result = result.drop(
+        columns=[c for c in ["CUSTOMER_CODE", "SOURCE_SHEET"]
+                 if c in result.columns],
+        errors="ignore",
+    )
+
+    # ------------------------------------------------------------------
+    # Step 2 : Fallback — latest snapshot สำหรับ row ที่ year ไม่ match
+    # ใช้ CUSTOMER_CODE ล่าสุดของ customer นั้น
+    # ------------------------------------------------------------------
+    avail_latest = (
+        avail.sort_values("SOURCE_SHEET", ascending=False)
+        .drop_duplicates(subset=["CUSTOMER_CODE"])
+        .reset_index(drop=True)
+    )
+
+    need_fb = result["CURRENT_DEBT_MILLION_THB"].isna()
+
+    if need_fb.any():
+        fb = (
+            result.loc[need_fb, ["Customer"]]
+            .reset_index(drop=True)
+            .merge(
+                avail_latest,
+                left_on="Customer",
+                right_on="CUSTOMER_CODE",
+                how="left",
+            )
+            .reset_index(drop=True)
+        )
+
+        for col in want_data:
+            if col in fb.columns:
+                result.loc[need_fb, col] = fb[col].values
+
+    # ------------------------------------------------------------------
+    # Cleanup
+    # ------------------------------------------------------------------
+    result = result.drop(
+        columns=[c for c in ["_year", "CUSTOMER_CODE", "SOURCE_SHEET"]
+                 if c in result.columns],
+        errors="ignore",
+    ).reset_index(drop=True)
+
+    return result
+
+
 # =============================================================================
 # Row 1 Right (40%) : Risk Matrix Bubble — X=DPD, Y=OverdueAmount, 4 Quadrants
 # =============================================================================
-# =============================================================================
-# Row 1 Right : Risk Matrix
-# แก้ : ใช้ log Y-axis เพื่อให้เห็น matrix จริง ไม่ถูก outlier ดึง
-# =============================================================================
-def _render_risk_matrix(df: pd.DataFrame):
-    if "DPD" not in df.columns or "CustomerName" not in df.columns:
-        st.info("Insufficient columns for risk matrix.")
-        return
-
+def _render_risk_matrix(df: pd.DataFrame, df_avail: pd.DataFrame = None):
+    """
+    Risk Matrix — ECharts Bubble
+    X    = DPD
+    Y    = ESTIMATE_AMOUNT (fallback: TotalOverdue/1e6 ถ้าไม่มี avail)
+    Size = Current Debt    (fallback: TotalOverdue log-scaled)
+    Color= Zone (Critical / Monitor / Watch / Low Risk)
+    """
     import numpy as np
 
-    scatter_df = (
-        df[df["IsOverdue"]]
-        .groupby("CustomerName")
-        .agg(
-            AvgDPD=("DPD", "mean"),
-            TotalOverdue=("OverdueAbs", "sum"),
-            InvoiceCount=("OverdueAbs", "count"),
-        )
-        .reset_index()
-    )
-    if scatter_df.empty:
-        st.info("No overdue data for risk matrix.")
+    if "Customer" not in df.columns:
+        st.info("Join key 'Customer' not found.")
         return
 
-    # ------------------------------------------------------------------
-    # Quadrant : ใช้ median จาก log-transformed values
-    # เพื่อให้ median line อยู่กลาง chart จริงๆ บน log scale
-    # ------------------------------------------------------------------
-    scatter_df["LogOverdue"] = np.log1p(scatter_df["TotalOverdue"])
-    median_dpd        = float(scatter_df["AvgDPD"].median())
-    median_log_overdue = float(scatter_df["LogOverdue"].median())
-    median_overdue_val = float(np.expm1(median_log_overdue))  # แปลงกลับสำหรับ hline
-
-    def _quadrant(row):
-        high_dpd    = row["AvgDPD"]    >= median_dpd
-        high_amount = row["LogOverdue"] >= median_log_overdue
-        if high_dpd and high_amount:
-            return "Critical", PALETTE["crimson"]
-        elif not high_dpd and high_amount:
-            return "Monitor",  PALETTE["violet_lt"]
-        elif high_dpd and not high_amount:
-            return "Watch",    PALETTE["amber"]
-        else:
-            return "Low Risk", PALETTE["sapphire_lt"]
-
-    scatter_df[["Quadrant", "Color"]] = scatter_df.apply(
-        lambda r: pd.Series(_quadrant(r)), axis=1
-    )
-
-    # ------------------------------------------------------------------
-    # Bubble size : log scale, cap ที่ 32px
-    # ------------------------------------------------------------------
-    log_vals         = scatter_df["LogOverdue"]
-    log_min, log_max = log_vals.min(), log_vals.max()
-    log_range        = max(log_max - log_min, 1)
-    scatter_df["BubbleSize"] = (
-        8 + ((log_vals - log_min) / log_range) * 24
-    ).clip(upper=32)
-
-    # ------------------------------------------------------------------
-    # Label : top 3 ต่อ quadrant เท่านั้น
-    # ------------------------------------------------------------------
-    top_idx = (
-        scatter_df
-        .sort_values("TotalOverdue", ascending=False)
-        .groupby("Quadrant")
-        .head(3)
-        .index
-    )
-    scatter_df["Label"] = scatter_df.apply(
-        lambda r: (
-            str(r["CustomerName"])[:13] + "…"
-            if len(str(r["CustomerName"])) > 13
-            else str(r["CustomerName"])
-        ) if r.name in top_idx else "",
-        axis=1,
-    )
-
-    # ------------------------------------------------------------------
-    # Plot — แต่ละ quadrant เป็น trace แยก (legend)
-    # Y-axis type = "log" — นี่คือ key fix
-    # ------------------------------------------------------------------
-    fig = go.Figure()
-
-    quad_order = ["Critical", "Monitor", "Watch", "Low Risk"]
-    quad_color_map = {
-        "Critical": PALETTE["crimson"],
-        "Monitor":  PALETTE["violet_lt"],
-        "Watch":    PALETTE["amber"],
-        "Low Risk": PALETTE["sapphire_lt"],
-    }
-
-    for quad in quad_order:
-        grp = scatter_df[scatter_df["Quadrant"] == quad]
-        if grp.empty:
-            continue
-        fig.add_trace(go.Scatter(
-            x=grp["AvgDPD"],
-            y=grp["TotalOverdue"],          # ค่าจริง — log แสดงโดย axis type
-            mode="markers+text",
-            name=quad,
-            text=grp["Label"],
-            textposition="top center",
-            textfont=dict(size=8, color="#3a4a60"),
-            marker=dict(
-                size=grp["BubbleSize"],
-                color=quad_color_map[quad],
-                opacity=0.78,
-                line=dict(color="white", width=0.8),
-            ),
-            customdata=grp[["CustomerName", "InvoiceCount", "TotalOverdue", "AvgDPD"]].values,
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                "DPD            : %{customdata[3]:.0f} days<br>"
-                "Overdue Amount : %{customdata[2]:,.0f} THB<br>"
-                "Invoice Count  : %{customdata[1]}<br>"
-                "<extra></extra>"
-            ),
-        ))
-
-    # ------------------------------------------------------------------
-    # Quadrant dividers
-    # vline = median DPD (linear axis ปกติ)
-    # hline = median overdue ค่าจริง (บน log axis)
-    # ------------------------------------------------------------------
-    fig.add_vline(
-        x=median_dpd,
-        line_dash="dot", line_color="#bbbbbb", line_width=1,
-    )
-    fig.add_hline(
-        y=median_overdue_val,
-        line_dash="dot", line_color="#bbbbbb", line_width=1,
-    )
-
-    # Quadrant corner labels
-    x_max = float(scatter_df["AvgDPD"].max())
-    y_min_log = float(scatter_df["TotalOverdue"].min())
-    y_max_log = float(scatter_df["TotalOverdue"].max())
-
-    # ตำแหน่ง annotation บน log scale — ใช้ค่าจริงแต่เลือก position ที่ชัด
-    for ax, ay, label, color in [
-        (x_max * 0.92, y_max_log * 0.85,  "CRITICAL",  PALETTE["crimson"]),
-        (median_dpd * 0.08, y_max_log * 0.85,  "MONITOR",   PALETTE["violet_lt"]),
-        (x_max * 0.92, y_min_log * 1.5,   "WATCH",     PALETTE["amber"]),
-        (median_dpd * 0.08, y_min_log * 1.5,   "LOW RISK",  PALETTE["sapphire_lt"]),
-    ]:
-        fig.add_annotation(
-            x=ax, y=ay,
-            text=f"<b>{label}</b>",
-            showarrow=False,
-            font=dict(size=9, color=color),
-            opacity=0.45,
-        )
-
-    apply_base_layout(fig, {
-        "height": 380,
-        "margin": dict(l=0, r=10, t=10, b=4),
-        "xaxis": dict(
-            title="DPD (Days Past Due)",
-            showgrid=True, gridcolor=GRID_COLOR,
-            color=FONT_COLOR, tickfont=dict(size=9),
-        ),
-        "yaxis": dict(
-            title="Overdue Amount (THB)",
-            type="log",                     # KEY FIX — log scale ทำให้เห็น matrix
-            showgrid=True, gridcolor=GRID_COLOR,
-            color=FONT_COLOR, tickfont=dict(size=9),
-        ),
-        "legend": dict(
-            orientation="h",
-            yanchor="bottom", y=1.01,
-            xanchor="right",  x=1,
-            font=dict(size=9),
-        ),
-        "hoverlabel": dict(
-            bgcolor="white", bordercolor="#d0dae6",
-            font=dict(size=10, color="#1B2A3B"), align="left",
-        ),
-    })
-    st.plotly_chart(fig, use_container_width=True, key="chart_risk_matrix")
-
-
-# =============================================================================
-# Row 2 : Linked Bubble
-# แก้ : X = OverdueAmount (แทน DPD), สีเข้มขึ้น
-# =============================================================================
-def _render_linked_bubble(df_overdue_filtered: pd.DataFrame, df_avail: pd.DataFrame):
-    if df_avail is None or df_avail.empty:
-        st.info("Credit Availability data not loaded.")
-        return
-
-    required_avail = {"CUSTOMER_CODE", "CURRENT_DEBT_MILLION_THB", "SOURCE_SHEET"}
-    if not required_avail.issubset(df_avail.columns):
-        st.info(f"Credit Availability missing columns: {required_avail - set(df_avail.columns)}")
-        return
-
-    if "Customer" not in df_overdue_filtered.columns:
-        st.error(
-            f"Join key 'Customer' not found. "
-            f"Available columns: {list(df_overdue_filtered.columns)}"
-        )
-        return
-
-    import numpy as np
-
-    overdue_df = df_overdue_filtered[df_overdue_filtered["IsOverdue"]].copy()
+    overdue_df = df[df["IsOverdue"]].copy()
     if overdue_df.empty:
-        st.info("No overdue records to plot.")
+        st.info("No overdue records for risk matrix.")
         return
 
-    # Aggregate
-    overdue_agg = (
+    agg = (
         overdue_df.groupby(["Customer", "CustomerName", "DueYear"])
         .agg(TotalOverdue=("OverdueAbs", "sum"), AvgDPD=("DPD", "mean"))
         .reset_index()
     )
 
-    # Prepare avail
-    avail_prep = df_avail.copy()
-    avail_prep["SOURCE_SHEET"]  = avail_prep["SOURCE_SHEET"].astype(str).str.strip()
-    avail_prep["CUSTOMER_CODE"] = (
-        pd.to_numeric(avail_prep["CUSTOMER_CODE"], errors="coerce").fillna(0).astype(int)
-    )
-    if "DATE" in avail_prep.columns:
-        avail_prep = (
-            avail_prep.sort_values("DATE", ascending=False)
-            .drop_duplicates(subset=["CUSTOMER_CODE", "SOURCE_SHEET"])
-        )
-    else:
-        avail_prep = avail_prep.drop_duplicates(subset=["CUSTOMER_CODE", "SOURCE_SHEET"])
+    # Join avail
+    agg = _join_avail(agg, df_avail, extra_cols=["ESTIMATE_AMOUNT"])
 
-    avail_cols = ["CUSTOMER_CODE", "SOURCE_SHEET", "CURRENT_DEBT_MILLION_THB"]
-    if "CLEAN_CREDIT_MB" in avail_prep.columns:
-        avail_cols.append("CLEAN_CREDIT_MB")
-    avail_prep = avail_prep[avail_cols].copy()
+    # Fallback columns
+    if "CURRENT_DEBT_MILLION_THB" not in agg.columns:
+        agg["CURRENT_DEBT_MILLION_THB"] = float("nan")
+    if "ESTIMATE_AMOUNT" not in agg.columns:
+        agg["ESTIMATE_AMOUNT"] = float("nan")
 
-    # Join year-matched
-    overdue_agg["_avail_year"] = overdue_agg["DueYear"].astype(str)
-    merged = overdue_agg.merge(
-        avail_prep,
-        left_on=["Customer", "_avail_year"],
-        right_on=["CUSTOMER_CODE", "SOURCE_SHEET"],
-        how="left",
-    )
+    agg["CURRENT_DEBT_MILLION_THB"] = agg["CURRENT_DEBT_MILLION_THB"].fillna(0.0)
+    agg["ESTIMATE_AMOUNT"]          = agg["ESTIMATE_AMOUNT"].fillna(0.0)
 
-    # Fallback
-    if merged["CURRENT_DEBT_MILLION_THB"].isna().all():
-        avail_fallback = (
-            avail_prep.sort_values("SOURCE_SHEET", ascending=False)
-            .drop_duplicates(subset=["CUSTOMER_CODE"])
-        )
-        merged = overdue_agg.merge(
-            avail_fallback, left_on="Customer", right_on="CUSTOMER_CODE", how="left",
-        )
-        st.caption("Note: No exact year match — using latest available snapshot per customer.")
+    # ถ้า ESTIMATE_AMOUNT เป็น 0 ทั้งหมด ใช้ TotalOverdue/1e6 แทน
+    if agg["ESTIMATE_AMOUNT"].sum() == 0:
+        agg["ESTIMATE_AMOUNT"] = agg["TotalOverdue"] / 1_000_000
 
-    merged = merged.dropna(subset=["CURRENT_DEBT_MILLION_THB"])
-    if merged.empty:
-        st.info("No matching records after join.")
+    # ถ้า CURRENT_DEBT_MILLION_THB เป็น 0 ทั้งหมด ใช้ TotalOverdue log แทน
+    if agg["CURRENT_DEBT_MILLION_THB"].sum() == 0:
+        agg["CURRENT_DEBT_MILLION_THB"] = agg["TotalOverdue"] / 1_000_000
+
+    # Quadrant
+    median_dpd = float(agg["AvgDPD"].median())
+    median_est = float(agg["ESTIMATE_AMOUNT"].median())
+
+    ZONE_COLOR = {
+        "Critical": "#A01F2D",
+        "Monitor":  "#8E6DC0",
+        "Watch":    "#E8A838",
+        "Low Risk": "#3A7BD5",
+    }
+
+    def _zone(row):
+        high_dpd = row["AvgDPD"]        >= median_dpd
+        high_est = row["ESTIMATE_AMOUNT"] >= median_est
+        if   high_dpd and high_est:      return "Critical"
+        elif not high_dpd and high_est:  return "Monitor"
+        elif high_dpd and not high_est:  return "Watch"
+        else:                            return "Low Risk"
+
+    agg["Zone"] = agg.apply(_zone, axis=1)
+
+    # Bubble size — normalise 10-55
+    d_vals         = agg["CURRENT_DEBT_MILLION_THB"].clip(lower=0)
+    d_min, d_max   = d_vals.min(), d_vals.max()
+    d_range        = max(d_max - d_min, 1)
+    agg["BubbleSize"] = (10 + ((d_vals - d_min) / d_range) * 45).clip(upper=55)
+
+    # Build series
+    series = []
+    for zone, color in ZONE_COLOR.items():
+        grp = agg[agg["Zone"] == zone]
+        if grp.empty:
+            continue
+        data = [
+            {
+                "name":  str(r["CustomerName"]),
+                "value": [
+                    round(float(r["AvgDPD"]), 1),
+                    round(float(r["ESTIMATE_AMOUNT"]), 2),
+                    round(float(r["BubbleSize"]), 1),
+                ],
+                "debt":    round(float(r["CURRENT_DEBT_MILLION_THB"]), 2),
+                "overdue": round(float(r["TotalOverdue"]), 0),
+            }
+            for _, r in grp.iterrows()
+        ]
+        series.append({
+            "name":       zone,
+            "type":       "scatter",
+            "data":       data,
+            "symbolSize": "function(val){ return val[2]; }",
+            "itemStyle":  {
+                "color":       color,
+                "opacity":     0.82,
+                "borderColor": "#ffffff",
+                "borderWidth": 1,
+            },
+            "emphasis": {
+                "label": {
+                    "show":      True,
+                    "formatter": "function(p){ return p.data.name.substring(0,14); }",
+                    "fontSize":  8,
+                    "color":     "#2c3e50",
+                },
+            },
+        })
+
+    # Median dividers
+    series.append({
+        "name": "",
+        "type": "scatter",
+        "data": [],
+        "markLine": {
+            "silent":    True,
+            "symbol":    ["none", "none"],
+            "lineStyle": {"type": "dashed", "color": "#cccccc", "width": 1},
+            "data":      [{"xAxis": median_dpd}, {"yAxis": median_est}],
+            "label":     {"show": False},
+        },
+    })
+
+    x_max = float(agg["AvgDPD"].max()) * 1.12
+    y_max = float(agg["ESTIMATE_AMOUNT"].max()) * 1.15
+
+    option = {
+        "backgroundColor": "transparent",
+        "tooltip": {
+            "trigger": "item",
+            "formatter": (
+                "function(p){"
+                "  if(!p.data || !p.data.value) return '';"
+                "  return '<b>' + p.data.name + '</b><br/>'"
+                "       + 'DPD: '          + p.data.value[0] + ' days<br/>'"
+                "       + 'Est. Amount: '  + p.data.value[1].toLocaleString() + ' MB<br/>'"
+                "       + 'Current Debt: ' + p.data.debt.toLocaleString()    + ' MB<br/>'"
+                "       + 'Overdue: '      + p.data.overdue.toLocaleString() + ' THB';"
+                "}"
+            ),
+        },
+        "legend": {
+            "data":      list(ZONE_COLOR.keys()),
+            "bottom":    0,
+            "itemWidth": 10, "itemHeight": 10,
+            "textStyle": {"fontSize": 10},
+        },
+        "graphic": [
+            {"type": "text", "style": {"text": "CRITICAL", "fill": "#A01F2D",
+             "fontSize": 11, "fontWeight": "bold"}, "left": "78%", "top": "6%"},
+            {"type": "text", "style": {"text": "MONITOR",  "fill": "#8E6DC0",
+             "fontSize": 11, "fontWeight": "bold"}, "left": "4%",  "top": "6%"},
+            {"type": "text", "style": {"text": "WATCH",    "fill": "#E8A838",
+             "fontSize": 11, "fontWeight": "bold"}, "left": "78%", "top": "84%"},
+            {"type": "text", "style": {"text": "LOW RISK", "fill": "#3A7BD5",
+             "fontSize": 11, "fontWeight": "bold"}, "left": "4%",  "top": "84%"},
+        ],
+        "xAxis": {
+            "name":         "DPD (Days Past Due)",
+            "nameLocation": "middle",
+            "nameGap":      30,
+            "max":          x_max,
+            "splitLine":    {"show": True, "lineStyle": {"type": "dashed", "color": "#eeeeee"}},
+            "axisLabel":    {"fontSize": 9},
+        },
+        "yAxis": {
+            "name":         "Estimate Amount (MB)",
+            "nameLocation": "middle",
+            "nameGap":      55,
+            "max":          y_max,
+            "splitLine":    {"show": True, "lineStyle": {"type": "dashed", "color": "#eeeeee"}},
+            "axisLabel":    {"fontSize": 9},
+        },
+        "series": series,
+    }
+
+    st_echarts(option, height="400px", key="echart_risk_matrix")
+
+
+# =============================================================================
+# Row 2 : Linked Bubble
+# =============================================================================
+def _render_exposure_utilization(df_overdue_filtered: pd.DataFrame, df_avail: pd.DataFrame):
+    """
+    Aging Distribution — Plotly Bar (ไม่มีเส้นประ)
+    X = DPD Bucket
+    Y = SUM(Current Debt) MB
+    """
+    if "Customer" not in df_overdue_filtered.columns:
+        st.error(f"Join key 'Customer' not found. Columns: {list(df_overdue_filtered.columns)}")
         return
 
-    # ------------------------------------------------------------------
-    # Bubble size : log scale, cap 38px
-    # ------------------------------------------------------------------
-    log_vals         = np.log1p(merged["AvgDPD"])
-    log_min, log_max = log_vals.min(), log_vals.max()
-    log_range        = max(log_max - log_min, 1)
-    merged["BubbleSize"] = (
-        7 + ((log_vals - log_min) / log_range) * 31
-    ).clip(upper=38)
+    overdue_df = df_overdue_filtered[df_overdue_filtered["IsOverdue"]].copy()
+    if overdue_df.empty:
+        st.info("No overdue records for aging distribution.")
+        return
 
-    # ------------------------------------------------------------------
-    # Label : top 8 by score
-    # ------------------------------------------------------------------
-    merged["_Score"] = (
-        merged["TotalOverdue"] / merged["TotalOverdue"].max()
-        + merged["CURRENT_DEBT_MILLION_THB"] / merged["CURRENT_DEBT_MILLION_THB"].max()
-    )
-    top_idx = merged.nlargest(8, "_Score").index
-    merged["Label"] = merged.apply(
-        lambda r: (
-            str(r["CustomerName"])[:13] + "…"
-            if len(str(r["CustomerName"])) > 13
-            else str(r["CustomerName"])
-        ) if r.name in top_idx else "",
-        axis=1,
+    agg = (
+        overdue_df.groupby(["Customer", "CustomerName", "DueYear"])
+        .agg(TotalOverdue=("OverdueAbs", "sum"), AvgDPD=("DPD", "mean"))
+        .reset_index()
     )
 
-    # ------------------------------------------------------------------
-    # Color scale เข้มขึ้น — เริ่มจาก mid-tone ไม่ใช่ขาว
-    # ------------------------------------------------------------------
-    has_credit  = "CLEAN_CREDIT_MB" in merged.columns
-    extra_hover = "Clean Credit   : %{customdata[3]:,.1f} MB<br>" if has_credit else ""
-    custom_cols = (
-        ["CustomerName", "TotalOverdue", "AvgDPD", "CLEAN_CREDIT_MB"]
-        if has_credit else ["CustomerName", "TotalOverdue", "AvgDPD"]
+    agg = _join_avail(agg, df_avail)
+
+    if "CURRENT_DEBT_MILLION_THB" not in agg.columns:
+        agg["CURRENT_DEBT_MILLION_THB"] = 0.0
+    agg["CURRENT_DEBT_MILLION_THB"] = agg["CURRENT_DEBT_MILLION_THB"].fillna(0.0)
+
+    # ถ้าไม่มี avail ใช้ TotalOverdue แทน
+    if agg["CURRENT_DEBT_MILLION_THB"].sum() == 0:
+        agg["CURRENT_DEBT_MILLION_THB"] = agg["TotalOverdue"] / 1_000_000
+
+    DPD_BUCKETS = ["Current", "1-30", "31-60", "61-90", "91-180", "181-365", "365+"]
+    BUCKET_COLORS = [
+        PALETTE["jade_lt"],
+        PALETTE["sapphire_lt"],
+        PALETTE["sapphire"],
+        PALETTE["amber_lt"],
+        PALETTE["amber"],
+        PALETTE["crimson"],
+        "#6B0F1A",
+    ]
+
+    def _bucket(dpd):
+        if pd.isna(dpd) or dpd <= 0: return "Current"
+        elif dpd <= 30:   return "1-30"
+        elif dpd <= 60:   return "31-60"
+        elif dpd <= 90:   return "61-90"
+        elif dpd <= 180:  return "91-180"
+        elif dpd <= 365:  return "181-365"
+        else:             return "365+"
+
+    agg["DPD_Bucket"] = agg["AvgDPD"].apply(_bucket)
+
+    hist = (
+        agg.groupby("DPD_Bucket")
+        .agg(
+            SumDebt=("CURRENT_DEBT_MILLION_THB", "sum"),
+            CustomerCount=("Customer",            "nunique"),
+        )
+        .reindex(DPD_BUCKETS, fill_value=0)
+        .reset_index()
     )
+
+    bar_colors = [
+        BUCKET_COLORS[DPD_BUCKETS.index(b)]
+        for b in hist["DPD_Bucket"]
+    ]
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        # KEY FIX : X = OverdueAmount แทน DPD
-        x=merged["TotalOverdue"],
-        y=merged["CURRENT_DEBT_MILLION_THB"],
-        mode="markers+text",
-        text=merged["Label"],
-        textposition="top center",
-        textfont=dict(size=8, color="#2c3e50"),
+    fig.add_trace(go.Bar(
+        x=hist["DPD_Bucket"],
+        y=hist["SumDebt"],
+        marker_color=bar_colors,
         marker=dict(
-            size=merged["BubbleSize"],
-            color=merged["TotalOverdue"],
-            colorscale=[
-                [0.0,  "#F4A261"],      # เริ่ม mid-orange — ไม่ใช่ขาว/ชมพูอ่อน
-                [0.4,  "#E76F51"],
-                [0.7,  PALETTE["crimson"]],
-                [1.0,  "#6B0F1A"],      # เข้มมากสำหรับ outlier
-            ],
-            cmin=merged["TotalOverdue"].quantile(0.10),   # ตัด bottom 10% ออก
-            cmax=merged["TotalOverdue"].quantile(0.95),   # cap top 5% ไม่ให้ดึง scale
-            showscale=True,
-            colorbar=dict(
-                title=dict(text="Overdue (THB)", font=dict(size=9)),
-                thickness=12,
-                len=0.55,
-                tickfont=dict(size=8),
-            ),
-            opacity=0.85,
-            line=dict(color="white", width=0.8),
+            color=bar_colors,
+            line=dict(width=0),         # ไม่มี border
         ),
-        customdata=merged[custom_cols].values,
+        text=[
+            f"{v:.1f}M" if v >= 1 else f"{v*1000:.0f}K"
+            for v in hist["SumDebt"]
+        ],
+        textposition="outside",
+        cliponaxis=False,
+        textfont=dict(size=9, color=FONT_COLOR),
+        customdata=hist["CustomerCount"].values,
         hovertemplate=(
-            "<b>%{customdata[0]}</b><br>"
-            "Overdue Amount : %{x:,.0f} THB<br>"      # อัปเดต label ให้ตรงแกน
-            "Current Debt   : %{y:,.1f} MB<br>"
-            "Avg DPD        : %{customdata[2]:.0f} days<br>"
-            + extra_hover +
+            "<b>%{x}</b><br>"
+            "Current Debt  : %{y:.2f} MB<br>"
+            "Customers     : %{customdata}<br>"
             "<extra></extra>"
         ),
+        name="Current Debt (MB)",
     ))
+    # ไม่มี secondary axis / เส้นประ
+
+    y_max = float(hist["SumDebt"].max()) * 1.20
 
     apply_base_layout(fig, {
-        "height": 420,
-        "margin": dict(l=0, r=70, t=10, b=4),
+        "height": 360,
+        "margin": dict(l=0, r=20, t=20, b=4),
         "xaxis": dict(
-            title="Overdue Amount (THB)",       # เปลี่ยน label แกน X
-            showgrid=True, gridcolor=GRID_COLOR,
-            color=FONT_COLOR, tickfont=dict(size=9),
+            title="DPD Bucket",
+            showgrid=False,
+            color=FONT_COLOR,
+            tickfont=dict(size=10),
+            categoryorder="array",
+            categoryarray=DPD_BUCKETS,
         ),
         "yaxis": dict(
-            title="Current Debt (Million THB)",
+            title="SUM(Current Debt) — Million THB",
             showgrid=True, gridcolor=GRID_COLOR,
             color=FONT_COLOR, tickfont=dict(size=9),
+            range=[0, y_max],
         ),
         "showlegend": False,
-        "hoverlabel": dict(
-            bgcolor="white", bordercolor="#d0dae6",
-            font=dict(size=10, color="#1B2A3B"), align="left",
-        ),
+        "bargap": 0.28,
     })
-    st.plotly_chart(fig, use_container_width=True, key="chart_linked_bubble")
+    st.plotly_chart(fig, use_container_width=True, key="chart_aging_dist_bucket")
+
 
 # =============================================================================
-# Row 3 Left : Aging Bucket Distribution — Stacked Bar
+# Section 3C : Overdue Velocity — Option 2
 # =============================================================================
-def _render_aging_bucket(df: pd.DataFrame, granularity: str):
-    if "AgingBucket" not in df.columns:
-        st.info("AgingBucket column not available.")
+def _render_overdue_velocity(df: pd.DataFrame):
+    """
+    Overdue Velocity
+    ใช้ df_filtered จาก main filter โดยตรง
+    Auto-detect granularity จากช่วงข้อมูลที่มี :
+      - span >= 365 days  → Yearly
+      - span >= 60 days   → Monthly
+      - span >= 14 days   → Weekly
+      - otherwise         → Daily
+    """
+    if "OriginalDueDate" not in df.columns or "Customer" not in df.columns:
+        st.info("Required columns (Customer, OriginalDueDate) not found.")
         return
 
     overdue_df = df[df["IsOverdue"]].copy()
     if overdue_df.empty:
-        st.info("No overdue data for aging analysis.")
+        st.info("No overdue records for Velocity analysis.")
         return
+
+    # -- Auto-detect granularity from data span ------------------------------
+    date_min = overdue_df["OriginalDueDate"].dropna().min()
+    date_max = overdue_df["OriginalDueDate"].dropna().max()
+    span_days = (date_max - date_min).days if pd.notna(date_min) and pd.notna(date_max) else 0
+
+    if span_days >= 365:
+        auto_gran = "Yearly"
+    elif span_days >= 60:
+        auto_gran = "Monthly"
+    elif span_days >= 14:
+        auto_gran = "Weekly"
+    else:
+        auto_gran = "Daily"
+
+    st.caption(
+        f"Date span in filtered data : {span_days} days  "
+        f"— auto granularity : {auto_gran}"
+    )
+
+    # -- Period label (ใช้ helpers เดิม) -------------------------------------
+    overdue_df["_PeriodLabel"] = _period_label_series(overdue_df, auto_gran)
+    overdue_df["_SortKey"]     = _sort_key_series(overdue_df, auto_gran)
+
+    all_periods = (
+        overdue_df[["_PeriodLabel", "_SortKey"]]
+        .drop_duplicates()
+        .sort_values("_SortKey")["_PeriodLabel"]
+        .tolist()
+    )
+
+    if len(all_periods) < 2:
+        st.info(
+            f"Only {len(all_periods)} period(s) found ({', '.join(all_periods)}). "
+            f"At least 2 periods are required to compute Velocity. "
+            f"Try expanding the date range in the main filter above."
+        )
+        return
+
+    prev_period = all_periods[-2]
+    curr_period = all_periods[-1]
+
+    st.caption(
+        f"Comparing  {prev_period}  (previous)  vs  {curr_period}  (current)"
+    )
+
+    # -- ส่วนที่เหลือเหมือนเดิมทุกอย่าง ------------------------------------
+    def _agg_period(period_str: str) -> pd.DataFrame:
+        sub = overdue_df[overdue_df["_PeriodLabel"] == period_str]
+        return (
+            sub.groupby(["Customer", "CustomerName"])
+            .agg(
+                OverdueAmt=("OverdueAbs", "sum"),
+                Invoices  =("OverdueAbs", "count"),
+            )
+            .reset_index()
+        )
+
+    df_prev = _agg_period(prev_period).rename(columns={
+        "OverdueAmt": "PrevOverdue",
+        "Invoices":   "PrevInvoices",
+    })
+    df_curr = _agg_period(curr_period).rename(columns={
+        "OverdueAmt": "CurrOverdue",
+        "Invoices":   "CurrInvoices",
+    })
+
+    df_vel = df_curr.merge(df_prev, on=["Customer", "CustomerName"], how="outer")
+    df_vel["CurrOverdue"]  = df_vel["CurrOverdue"].fillna(0.0)
+    df_vel["PrevOverdue"]  = df_vel["PrevOverdue"].fillna(0.0)
+    df_vel["CustomerName"] = df_vel["CustomerName"].fillna(
+        df_vel["Customer"].astype(str)
+    )
+
+    df_vel["VelocityAmt"] = df_vel["CurrOverdue"] - df_vel["PrevOverdue"]
+    df_vel["VelocityPct"] = (
+        df_vel["VelocityAmt"]
+        / df_vel["PrevOverdue"].replace(0.0, float("nan"))
+        * 100
+    )
+    fill_vals = pd.Series(
+        [100.0 if c > 0 else 0.0 for c in df_vel["CurrOverdue"]],
+        index=df_vel.index,
+    )
+    df_vel["VelocityPct"] = df_vel["VelocityPct"].fillna(fill_vals)
+
+    surge_thresh = (
+        float(df_vel["VelocityAmt"].quantile(0.75))
+        if len(df_vel) >= 4 else 0.0
+    )
+
+    def _tier_q(v: float) -> str:
+        if v > surge_thresh and v > 0: return "Surging"
+        elif v > 0:                    return "Rising"
+        elif v == 0:                   return "Flat"
+        else:                          return "Improving"
+
+    df_vel["VelocityTier"] = df_vel["VelocityAmt"].apply(_tier_q)
+
+    TIER_COLOR = {
+        "Surging":   PALETTE["crimson"],
+        "Rising":    PALETTE["amber"],
+        "Flat":      PALETTE["nodata"],
+        "Improving": PALETTE["jade_lt"],
+    }
+    TIER_ORDER = ["Surging", "Rising", "Flat", "Improving"]
+
+    # -- KPI row --------------------------------------------------------------
+    net_change = float(df_vel["VelocityAmt"].sum())
+    surging    = df_vel[df_vel["VelocityTier"] == "Surging"]
+    rising     = df_vel[df_vel["VelocityAmt"] > 0]
+    improving  = df_vel[df_vel["VelocityAmt"] < 0]
+
+    v_cols = st.columns(4, gap="small")
+    kpi_vel = [
+        (
+            "Surging",
+            f"{len(surging):,} customers",
+            f"+{surging['VelocityAmt'].sum():,.0f} THB",
+            "danger",
+        ),
+        (
+            "Rising (All)",
+            f"{len(rising):,} customers",
+            f"+{rising['VelocityAmt'].sum():,.0f} THB",
+            "warning",
+        ),
+        (
+            "Improving",
+            f"{len(improving):,} customers",
+            f"{improving['VelocityAmt'].sum():,.0f} THB",
+            "safe",
+        ),
+        (
+            "Net Portfolio Change",
+            f"{net_change:+,.0f} THB",
+            f"{prev_period} to {curr_period}",
+            "danger" if net_change > 0 else "safe",
+        ),
+    ]
+    for col_ui, (label, value, sub, variant) in zip(v_cols, kpi_vel):
+        col_ui.markdown(
+            _overdue_kpi_card(label=label, value=value, sub=sub, variant=variant),
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='margin-top:8px'></div>", unsafe_allow_html=True)
+
+    col_bar, col_scatter = st.columns([1, 1], gap="medium")
+
+    with col_bar:
+        top_growth = (
+            df_vel[df_vel["VelocityAmt"] > 0]
+            .sort_values("VelocityAmt", ascending=False)
+            .head(15)
+            .copy()
+        )
+
+        if top_growth.empty:
+            st.info("No customers with increasing overdue in this period.")
+        else:
+            fig_bar = go.Figure()
+            fig_bar.add_trace(go.Bar(
+                x           = [float(v) for v in top_growth["VelocityAmt"]],
+                y           = [str(v)   for v in top_growth["CustomerName"]],
+                orientation = "h",
+                marker_color = [
+                    TIER_COLOR.get(t, PALETTE["nodata"])
+                    for t in top_growth["VelocityTier"]
+                ],
+                text = [
+                    f"+{v:,.0f}  ({p:+.0f}%)"
+                    for v, p in zip(
+                        top_growth["VelocityAmt"],
+                        top_growth["VelocityPct"],
+                    )
+                ],
+                textposition = "outside",
+                cliponaxis   = False,
+                textfont     = dict(size=8, color=FONT_COLOR),
+                customdata   = list(zip(
+                    [float(v) for v in top_growth["CurrOverdue"]],
+                    [float(v) for v in top_growth["PrevOverdue"]],
+                )),
+                hovertemplate = (
+                    "<b>%{y}</b><br>"
+                    "Delta Overdue         : %{x:+,.2f} THB<br>"
+                    f"Previous ({prev_period}) : %{{customdata[1]:,.2f}} THB<br>"
+                    f"Current  ({curr_period}) : %{{customdata[0]:,.2f}} THB<br>"
+                    "<extra></extra>"
+                ),
+            ))
+            apply_base_layout(fig_bar, {
+                "height": 420,
+                "margin": dict(l=0, r=90, t=20, b=4),
+                "xaxis": dict(
+                    title="Delta Overdue Amount (THB)",
+                    showgrid=True, gridcolor=GRID_COLOR,
+                    color=FONT_COLOR, tickfont=dict(size=8),
+                    zeroline=False,
+                ),
+                "yaxis": dict(
+                    autorange="reversed",
+                    showgrid=False,
+                    color=FONT_COLOR, tickfont=dict(size=8),
+                ),
+                "showlegend": False,
+                "title": dict(
+                    text=f"Top 15 Overdue Growth  ({prev_period} to {curr_period})",
+                    font=dict(size=10, color=FONT_COLOR), x=0,
+                ),
+            })
+            st.plotly_chart(fig_bar, use_container_width=True, key="chart_velocity_bar")
+
+    with col_scatter:
+        df_plot = df_vel[
+            (df_vel["CurrOverdue"] > 0) | (df_vel["PrevOverdue"] > 0)
+        ].copy()
+
+        if df_plot.empty:
+            st.info("No data for scatter plot.")
+        else:
+            s_vals  = df_plot["CurrOverdue"].clip(lower=1.0)
+            s_min, s_max = float(s_vals.min()), float(s_vals.max())
+            s_range = max(s_max - s_min, 1.0)
+            df_plot["BubbleSize"] = (
+                6 + ((s_vals - s_min) / s_range) * 44
+            ).clip(upper=50)
+
+            fig_sc = go.Figure()
+
+            for tier in TIER_ORDER:
+                grp = df_plot[df_plot["VelocityTier"] == tier]
+                if grp.empty:
+                    continue
+                fig_sc.add_trace(go.Scatter(
+                    x    = [float(v) for v in grp["PrevOverdue"]],
+                    y    = [float(v) for v in grp["CurrOverdue"]],
+                    mode = "markers",
+                    name = tier,
+                    marker = dict(
+                        size     = [float(v) for v in grp["BubbleSize"]],
+                        color    = TIER_COLOR.get(tier, PALETTE["nodata"]),
+                        opacity  = 0.80,
+                        line     = dict(width=1, color="white"),
+                        sizemode = "diameter",
+                    ),
+                    text = [str(v) for v in grp["CustomerName"]],
+                    customdata = list(zip(
+                        [float(v) for v in grp["VelocityAmt"]],
+                        [float(v) for v in grp["VelocityPct"]],
+                    )),
+                    hovertemplate = (
+                        "<b>%{text}</b><br>"
+                        f"Previous ({prev_period}) : %{{x:,.2f}} THB<br>"
+                        f"Current  ({curr_period}) : %{{y:,.2f}} THB<br>"
+                        "Delta        : %{customdata[0]:+,.2f} THB<br>"
+                        "Delta %%     : %{customdata[1]:+.1f}%%<extra></extra>"
+                    ),
+                ))
+
+            axis_max = float(max(
+                df_plot["CurrOverdue"].max(),
+                df_plot["PrevOverdue"].max(),
+            )) * 1.08
+            fig_sc.add_trace(go.Scatter(
+                x=[0.0, axis_max], y=[0.0, axis_max],
+                mode="lines",
+                line=dict(dash="dot", color="#cccccc", width=1),
+                showlegend=False,
+                hoverinfo="skip",
+            ))
+            fig_sc.add_annotation(
+                x=axis_max * 0.12, y=axis_max * 0.88,
+                text="Deteriorating<br>(above line)",
+                showarrow=False,
+                font=dict(color=PALETTE["crimson"], size=9),
+                bgcolor="rgba(255,255,255,0.75)",
+            )
+            fig_sc.add_annotation(
+                x=axis_max * 0.75, y=axis_max * 0.10,
+                text="Improving<br>(below line)",
+                showarrow=False,
+                font=dict(color=PALETTE["jade"], size=9),
+                bgcolor="rgba(255,255,255,0.75)",
+            )
+            apply_base_layout(fig_sc, {
+                "height": 420,
+                "margin": dict(l=0, r=20, t=20, b=4),
+                "xaxis": dict(
+                    title=f"Previous Overdue — {prev_period} (THB)",
+                    showgrid=True, gridcolor=GRID_COLOR,
+                    color=FONT_COLOR, tickfont=dict(size=8),
+                    range=[-axis_max * 0.02, axis_max],
+                    zeroline=False,
+                ),
+                "yaxis": dict(
+                    title=f"Current Overdue — {curr_period} (THB)",
+                    showgrid=True, gridcolor=GRID_COLOR,
+                    color=FONT_COLOR, tickfont=dict(size=8),
+                    range=[-axis_max * 0.02, axis_max],
+                    zeroline=False,
+                ),
+                "legend": dict(
+                    font=dict(size=9),
+                    orientation="h",
+                    yanchor="bottom", y=1.01,
+                    xanchor="right",  x=1,
+                ),
+                "title": dict(
+                    text="Previous vs Current Period",
+                    font=dict(size=10, color=FONT_COLOR), x=0,
+                ),
+            })
+            st.plotly_chart(
+                fig_sc, use_container_width=True, key="chart_velocity_scatter"
+            )
+
+
+# =============================================================================
+# Section 5 Left (60%) : Overdue Trend
+# =============================================================================
+def _render_overdue_trend(df: pd.DataFrame, granularity: str):
+    if "OriginalDueDate" not in df.columns:
+        st.info("OriginalDueDate column not found.")
+        return None
+
+    overdue_df = df[
+        df["IsOverdue"] &
+        (df["OverdueAbs"] > 0)
+    ].copy()
+
+    if overdue_df.empty:
+        st.info("No overdue records with amount > 0.")
+        return None
+
+    if "CustomerName" not in overdue_df.columns:
+        st.info("CustomerName column not found.")
+        return None
 
     overdue_df["_PeriodLabel"] = _period_label_series(overdue_df, granularity)
     overdue_df["_SortKey"]     = _sort_key_series(overdue_df, granularity)
 
-    bucket_trend = (
-        overdue_df.groupby(["_PeriodLabel", "_SortKey", "AgingBucket"])["OverdueAbs"]
-        .sum()
+    ctl1, ctl2, ctl3 = st.columns([2, 1, 1])
+    with ctl1:
+        search_text = st.text_input(
+            "Search customer name",
+            placeholder="Type company name (leave blank for Top N)",
+            key="od_trend_search",
+            label_visibility="collapsed",
+        )
+    with ctl2:
+        top_n = st.number_input(
+            "Top N", min_value=1, max_value=50, value=10, step=1,
+            key="od_trend_topn",
+            label_visibility="collapsed",
+            help="Top N customers by total overdue",
+        )
+    with ctl3:
+        trend_mode = st.selectbox(
+            "Mode",
+            options=["Per-Period", "Cumulative"],
+            index=0,
+            key="od_trend_mode",
+            label_visibility="collapsed",
+        )
+
+    grp = (
+        overdue_df
+        .groupby(["CustomerName", "_PeriodLabel", "_SortKey"])
+        .agg(OverdueAbs=("OverdueAbs", "sum"))
         .reset_index()
         .sort_values("_SortKey")
     )
 
-    periods = bucket_trend["_PeriodLabel"].unique()
+    cust_totals   = (
+        grp.groupby("CustomerName")["OverdueAbs"]
+        .sum().sort_values(ascending=False)
+    )
+    all_customers = cust_totals.index.tolist()
+
+    if search_text.strip():
+        terms = [t.strip().lower() for t in search_text.split(",") if t.strip()]
+        sel_customers = [c for c in all_customers
+                         if any(t in c.lower() for t in terms)]
+        if not sel_customers:
+            st.warning(f"No customers match: {search_text}")
+            sel_customers = all_customers[:int(top_n)]
+    else:
+        sel_customers = all_customers[:int(top_n)]
+
+    if not sel_customers:
+        st.info("No customers to display.")
+        return None
+
+    grp_sel = grp[grp["CustomerName"].isin(sel_customers)]
+
+    all_periods = (
+        grp_sel[["_PeriodLabel", "_SortKey"]]
+        .drop_duplicates()
+        .sort_values("_SortKey")["_PeriodLabel"]
+        .tolist()
+    )
+
+    if not all_periods:
+        st.info("No period data found.")
+        return None
+
+    pivot_raw = (
+        grp_sel.pivot_table(
+            index="CustomerName",
+            columns="_PeriodLabel",
+            values="OverdueAbs",
+            aggfunc="sum",
+        )
+        .reindex(columns=all_periods, fill_value=0)
+        .fillna(0)
+    )
+
+    if trend_mode == "Cumulative":
+        pivot_plot = pivot_raw.cumsum(axis=1)
+        y_title    = "Outstanding Overdue Amount (THB)"
+    else:
+        pivot_plot = pivot_raw.copy()
+        y_title    = "Overdue Amount (THB)"
+
+    import plotly.express as px
+    import numpy as _np
+
+    COLOR_PALETTE = (
+        px.colors.qualitative.Plotly
+        + px.colors.qualitative.D3
+        + px.colors.qualitative.Set1
+    )
+
+    cust_meta = {}
+    for i, cust in enumerate(sel_customers):
+        if cust not in pivot_raw.index:
+            continue
+        color  = COLOR_PALETTE[i % len(COLOR_PALETTE)]
+        y_raw  = pivot_raw.loc[cust].tolist()
+        x_idx  = list(range(len(y_raw)))
+
+        if len(y_raw) >= 2 and sum(y_raw) > 0:
+            coeffs = _np.polyfit(x_idx, y_raw, 1)
+            slope  = float(coeffs[0])
+        else:
+            slope = 0.0
+
+        active_periods = int(sum(1 for v in y_raw if v > 0))
+        total_periods  = len(y_raw)
+        total_ov       = sum(y_raw)
+        last_ov        = y_raw[-1]
+        first_ov       = next((v for v in y_raw if v > 0), 0.0)
+        delta_ov       = last_ov - first_ov
+        max_ov         = max(y_raw) if y_raw else 0.0
+        ratio          = active_periods / max(total_periods, 1)
+
+        if slope > 0 and ratio >= 0.5:
+            classification = "Escalating"
+        elif slope < 0 and ratio >= 0.3:
+            classification = "Improving"
+        elif ratio >= 0.5:
+            classification = "Persistent"
+        else:
+            classification = "Intermittent"
+
+        cust_meta[cust] = {
+            "color": color, "total_ov": total_ov, "last_ov": last_ov,
+            "delta_ov": delta_ov, "max_ov": max_ov, "slope": slope,
+            "active_periods": active_periods, "total_periods": total_periods,
+            "classification": classification,
+        }
+
     fig = go.Figure()
 
-    for bucket, color in AGING_COLORS.items():
-        bucket_data = bucket_trend[bucket_trend["AgingBucket"] == bucket]
-        bucket_map  = bucket_data.set_index("_PeriodLabel")["OverdueAbs"].to_dict()
-        fig.add_trace(go.Bar(
-            x=periods,
-            y=[bucket_map.get(p, 0) for p in periods],
-            name=f"{bucket} DPD",
-            marker_color=color,
-            hovertemplate=f"<b>{bucket} DPD</b><br>%{{x}}<br>Amount : %{{y:,.2f}} THB<extra></extra>",
+    for i, cust in enumerate(sel_customers):
+        if cust not in pivot_plot.index:
+            continue
+        color  = COLOR_PALETTE[i % len(COLOR_PALETTE)]
+        y_plot = pivot_plot.loc[cust].tolist()
+        y_raw  = pivot_raw.loc[cust].tolist()
+
+        fig.add_trace(go.Scatter(
+            x    = all_periods,
+            y    = y_plot,
+            mode = "lines+markers",
+            name = cust,
+            line   = dict(width=2.5, color=color),
+            marker = dict(
+                size=8, color=color,
+                line=dict(width=1.5, color="white"),
+            ),
+            customdata = list(zip(
+                y_raw,
+                [cust_meta.get(cust, {}).get("classification", "")] * len(y_raw),
+            )),
+            hovertemplate = (
+                f"<b>{cust}</b><br>"
+                "Period         : %{x}<br>"
+                "Overdue        : <b>%{y:,.2f} THB</b><br>"
+                "Period Amount  : %{customdata[0]:,.2f} THB<br>"
+                "Classification : %{customdata[1]}<br>"
+                "<extra></extra>"
+            ),
         ))
 
-    apply_base_layout(fig, {
-        "height": 320,
-        "margin": dict(l=0, r=20, t=30, b=40),
-        "barmode": "stack",
-        "title": dict(
-            text="Aging Bucket Distribution",
-            font=dict(size=11, color=FONT_COLOR), x=0,
-        ),
-        "xaxis": dict(
-            tickangle=-35, tickfont=dict(size=8),
-            showgrid=False, color=FONT_COLOR,
-        ),
-        "yaxis": dict(
-            title="Overdue Amount (THB)",
-            showgrid=True, gridcolor=GRID_COLOR,
-            color=FONT_COLOR, tickfont=dict(size=9),
-        ),
-        "legend": dict(
-            orientation="h",
-            yanchor="bottom", y=1.02,
-            xanchor="right",  x=1,
-            font=dict(size=9),
-        ),
-    })
-    st.plotly_chart(fig, use_container_width=True, key="chart_aging_bucket")
-
-
-# =============================================================================
-# Row 3 Right : Aging Trend — Multi-line chart
-# =============================================================================
-def _render_aging_trend(df: pd.DataFrame, granularity: str):
-    if "AgingBucket" not in df.columns:
-        st.info("AgingBucket column not available.")
-        return
-
-    overdue_df = df[df["IsOverdue"]].copy()
-    if overdue_df.empty:
-        st.info("No overdue data for aging trend.")
-        return
-
-    overdue_df["_PeriodLabel"] = _period_label_series(overdue_df, granularity)
-    overdue_df["_SortKey"]     = _sort_key_series(overdue_df, granularity)
-
-    trend = (
-        overdue_df.groupby(["_PeriodLabel", "_SortKey", "AgingBucket"])["OverdueAbs"]
-        .sum()
-        .reset_index()
-        .sort_values("_SortKey")
-    )
-
-    fig = go.Figure()
-
-    for bucket, color in AGING_COLORS.items():
-        bucket_data = trend[trend["AgingBucket"] == bucket].sort_values("_SortKey")
-        if bucket_data.empty:
-            continue
+    if len(sel_customers) > 1:
+        avg_y = pivot_plot.mean(axis=0).tolist()
         fig.add_trace(go.Scatter(
-            x=bucket_data["_PeriodLabel"],
-            y=bucket_data["OverdueAbs"],
-            mode="lines+markers",
-            name=f"{bucket} DPD",
-            line=dict(color=color, width=2),
-            marker=dict(size=6, color=color),
-            hovertemplate=(
-                f"<b>{bucket} DPD</b><br>"
-                "%{x}<br>"
-                "Amount : %{y:,.2f} THB<br>"
+            x    = all_periods,
+            y    = avg_y,
+            mode = "lines",
+            name = "Portfolio Average",
+            line = dict(width=2, dash="dot", color="rgba(0,0,0,0.45)"),
+            hovertemplate = (
+                "Portfolio Average<br>"
+                "Period : %{x}<br>"
+                "Overdue : <b>%{y:,.2f} THB</b>"
                 "<extra></extra>"
             ),
         ))
 
     apply_base_layout(fig, {
-        "height": 320,
-        "margin": dict(l=0, r=20, t=30, b=40),
+        "height": 420,
+        "margin": dict(l=0, r=20, t=36, b=40),
         "title": dict(
-            text="Aging Trend — Is Debt Quality Improving?",
+            text=(
+                f"Overdue Trend — {sel_customers[0]}"
+                if len(sel_customers) == 1 else
+                f"Overdue Trend — Top {len(sel_customers)} Companies ({trend_mode})"
+            ),
             font=dict(size=11, color=FONT_COLOR), x=0,
         ),
         "xaxis": dict(
-            tickangle=-35, tickfont=dict(size=8),
-            showgrid=False, color=FONT_COLOR,
+            title         = f"Period ({granularity})",
+            tickangle     = -35,
+            tickfont      = dict(size=8),
+            showgrid      = True,
+            gridcolor     = GRID_COLOR,
+            color         = FONT_COLOR,
+            type          = "category",
+            categoryorder = "array",
+            categoryarray = all_periods,
         ),
         "yaxis": dict(
-            title="Overdue Amount (THB)",
-            showgrid=True, gridcolor=GRID_COLOR,
-            color=FONT_COLOR, tickfont=dict(size=9),
+            title     = y_title,
+            showgrid  = True, gridcolor=GRID_COLOR,
+            color     = FONT_COLOR, tickfont=dict(size=9),
+            rangemode = "tozero",
         ),
         "legend": dict(
-            orientation="h",
-            yanchor="bottom", y=1.02,
-            xanchor="right",  x=1,
-            font=dict(size=9),
+            orientation="v", x=1.01, y=1,
+            font=dict(size=8),
+            bgcolor="rgba(255,255,255,0.85)",
+            bordercolor="#d0dae6", borderwidth=1,
         ),
+        "hovermode": "closest",
         "hoverlabel": dict(
             bgcolor="white", bordercolor="#d0dae6",
             font=dict(size=10, color="#1B2A3B"), align="left",
         ),
     })
-    st.plotly_chart(fig, use_container_width=True, key="chart_aging_trend")
+    st.plotly_chart(fig, use_container_width=True, key="chart_overdue_trend")
+
+    return cust_meta
+
+
+# =============================================================================
+# Section 5 Right (40%) : Trend Summary Panel — ทุก card อยู่ใน scroll เดียว
+# =============================================================================
+def _render_trend_summary_panel(cust_meta: dict):
+    if not cust_meta:
+        st.info("No trend data to summarize.")
+        return
+
+    CLASS_STYLE = {
+        "Escalating":   (PALETTE["crimson"],  "rgba(215,38,61,0.07)"),
+        "Persistent":   (PALETTE["amber"],    "rgba(181,98,10,0.07)"),
+        "Improving":    (PALETTE["jade"],     "rgba(26,122,74,0.07)"),
+        "Intermittent": (PALETTE["nodata"],   "rgba(138,155,176,0.07)"),
+    }
+
+    # ── Classification strip ─────────────────────────────────────────────────
+    from collections import Counter
+    class_counts    = Counter(m["classification"] for m in cust_meta.values())
+    total_companies = len(cust_meta)
+
+    strip_parts = []
+    for cls in ["Escalating", "Persistent", "Improving", "Intermittent"]:
+        cnt = class_counts.get(cls, 0)
+        if cnt == 0:
+            continue
+        accent, bg = CLASS_STYLE[cls]
+        pct = cnt / total_companies * 100
+        strip_parts.append(
+            f"<div style='background:{bg};border:1px solid {accent}33;"
+            f"border-radius:6px;padding:3px 9px;'>"
+            f"<span style='font-size:0.67rem;font-weight:700;color:{accent};'>"
+            f"{cls}</span>"
+            f"<span style='font-size:0.67rem;color:#6b7a8d;margin-left:5px;'>"
+            f"{cnt} ({pct:.0f}%)</span></div>"
+        )
+
+    strip_html = (
+        "<div style='background:rgba(27,79,138,0.05);"
+        "border:1px solid rgba(27,79,138,0.15);"
+        "border-radius:8px;padding:10px 14px 8px 14px;margin-bottom:10px;'>"
+        "<div style='font-size:0.68rem;font-weight:700;"
+        f"color:{PALETTE['sapphire']};letter-spacing:0.06em;"
+        "text-transform:uppercase;margin-bottom:6px;'>Portfolio Classification</div>"
+        "<div style='display:flex;gap:8px;flex-wrap:wrap;'>"
+        + "".join(strip_parts)
+        + "</div></div>"
+    )
+    st.markdown(strip_html, unsafe_allow_html=True)
+
+    # ── Build all cards HTML ──────────────────────────────────────────────────
+    def _build_card(cust: str, meta: dict) -> str:
+        accent, bg  = CLASS_STYLE.get(meta["classification"], ("#555", "#f5f5f5"))
+        color       = meta["color"]
+        delta_val   = meta["delta_ov"]
+        delta_str   = f"+{delta_val:,.0f}" if delta_val > 0 else f"{delta_val:,.0f}"
+        delta_color = (
+            PALETTE["crimson"] if delta_val > 0 else
+            PALETTE["jade"]    if delta_val < 0 else
+            PALETTE["nodata"]
+        )
+        slope_dir = (
+            "Increasing" if meta["slope"] > 0 else
+            "Decreasing" if meta["slope"] < 0 else "Flat"
+        )
+        return (
+            f"<div style='border-left:4px solid {color};background:{bg};"
+            f"border-radius:0 8px 8px 0;padding:8px 12px;margin-bottom:7px;'>"
+            f"<div style='display:flex;justify-content:space-between;"
+            f"align-items:flex-start;margin-bottom:5px;'>"
+            f"<div style='font-size:0.71rem;font-weight:700;color:{FONT_COLOR};"
+            f"line-height:1.3;max-width:62%;word-break:break-word;'>{cust}</div>"
+            f"<div style='font-size:0.61rem;font-weight:700;color:{accent};"
+            f"background:rgba(255,255,255,0.72);border:1px solid {accent}55;"
+            f"border-radius:4px;padding:2px 7px;white-space:nowrap;'>"
+            f"{meta['classification']}</div></div>"
+            f"<div style='display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;'>"
+            f"<div><div style='font-size:0.59rem;color:#6b7a8d;'>Total Overdue</div>"
+            f"<div style='font-size:0.69rem;font-weight:700;color:{FONT_COLOR};'>"
+            f"{meta['total_ov']:,.0f}</div></div>"
+            f"<div><div style='font-size:0.59rem;color:#6b7a8d;'>Latest Period</div>"
+            f"<div style='font-size:0.69rem;font-weight:700;color:{FONT_COLOR};'>"
+            f"{meta['last_ov']:,.0f}</div></div>"
+            f"<div><div style='font-size:0.59rem;color:#6b7a8d;'>First to Last</div>"
+            f"<div style='font-size:0.69rem;font-weight:700;color:{delta_color};'>"
+            f"{delta_str}</div></div>"
+            f"<div><div style='font-size:0.59rem;color:#6b7a8d;'>Direction</div>"
+            f"<div style='font-size:0.69rem;font-weight:700;color:{accent};'>"
+            f"{slope_dir}</div></div>"
+            f"<div><div style='font-size:0.59rem;color:#6b7a8d;'>Active / Total Pd</div>"
+            f"<div style='font-size:0.69rem;color:{FONT_COLOR};'>"
+            f"{meta['active_periods']} / {meta['total_periods']}</div></div>"
+            f"<div><div style='font-size:0.59rem;color:#6b7a8d;'>Peak Period</div>"
+            f"<div style='font-size:0.69rem;color:{FONT_COLOR};'>"
+            f"{meta['max_ov']:,.0f}</div></div>"
+            f"</div></div>"
+        )
+
+    sorted_custs = sorted(
+        cust_meta.items(), key=lambda x: x[1]["total_ov"], reverse=True
+    )
+
+    # ── ทุก card อยู่ใน scroll container เดียว ───────────────────────────────
+    # max-height = ประมาณ 3.5 card เพื่อให้เห็นว่ามีอะไรด้านล่าง
+    CARD_H_PX    = 112
+    VISIBLE_N    = 3
+    SCROLL_MAX_H = int(CARD_H_PX * VISIBLE_N + CARD_H_PX * 0.4)  # ~392px
+
+    all_cards_html = "".join(
+        _build_card(cust, meta) for cust, meta in sorted_custs
+    )
+
+    scroll_html = (
+        f"<div style='"
+        f"max-height:{SCROLL_MAX_H}px;"
+        f"overflow-y:auto;"
+        f"padding-right:6px;"
+        f"scrollbar-width:thin;"
+        f"scrollbar-color:{PALETTE['sapphire_lt']} #f0f4f8;"
+        f"'>"
+        + all_cards_html +
+        f"</div>"
+    )
+
+    if len(sorted_custs) > VISIBLE_N:
+        st.markdown(
+            f"<div style='font-size:0.65rem;color:#6b7a8d;"
+            f"margin-bottom:4px;'>"
+            f"{len(sorted_custs)} companies — scroll to view all</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(scroll_html, unsafe_allow_html=True)
+
+
 
 
 # =============================================================================

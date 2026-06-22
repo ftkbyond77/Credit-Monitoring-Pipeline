@@ -1,0 +1,139 @@
+2026-06-22 17:26:35 [INFO] 
+======================================================================
+STEP 1 — Upload Files
+======================================================================
+2026-06-22 17:26:38 [DEBUG] Calling on_part_begin with no data
+2026-06-22 17:26:38 [DEBUG] Calling on_header_field with data[42:61]
+2026-06-22 17:26:38 [DEBUG] Calling on_header_value with data[63:142]
+2026-06-22 17:26:38 [DEBUG] Calling on_header_end with no data
+2026-06-22 17:26:38 [DEBUG] Calling on_header_field with data[144:156]
+2026-06-22 17:26:38 [DEBUG] Calling on_header_value with data[158:223]
+2026-06-22 17:26:38 [DEBUG] Calling on_header_end with no data
+2026-06-22 17:26:38 [DEBUG] Calling on_headers_finished with no data
+2026-06-22 17:26:38 [DEBUG] Calling on_part_data with data[227:65536]
+2026-06-22 17:26:38 [DEBUG] Calling on_part_data with data[0:81920]
+2026-06-22 17:26:38 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:38 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:38 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:38 [DEBUG] Calling on_part_data with data[0:31890]
+2026-06-22 17:26:38 [DEBUG] Calling on_part_end with no data
+2026-06-22 17:26:38 [DEBUG] Calling on_end with no data
+2026-06-22 17:26:38 [INFO] 
+======================================================================
+STEP 1 — Upload Files
+======================================================================
+2026-06-22 17:26:40 [DEBUG] Calling on_part_begin with no data
+2026-06-22 17:26:40 [DEBUG] Calling on_header_field with data[42:61]
+2026-06-22 17:26:40 [DEBUG] Calling on_header_value with data[63:162]
+2026-06-22 17:26:40 [DEBUG] Calling on_header_end with no data
+2026-06-22 17:26:40 [DEBUG] Calling on_header_field with data[164:176]
+2026-06-22 17:26:40 [DEBUG] Calling on_header_value with data[178:243]
+2026-06-22 17:26:40 [DEBUG] Calling on_header_end with no data
+2026-06-22 17:26:40 [DEBUG] Calling on_headers_finished with no data
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[247:32768]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:114688]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:114688]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:32768]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:81920]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:81920]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:114688]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:131072]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_data with data[0:112020]
+2026-06-22 17:26:40 [DEBUG] Calling on_part_end with no data
+2026-06-22 17:26:40 [DEBUG] Calling on_end with no data
+2026-06-22 17:26:41 [INFO] 
+======================================================================
+STEP 1 — Upload Files
+======================================================================
+2026-06-22 17:26:41 [INFO] avail: Credit Availability.xlsx (572,335 bytes)
+2026-06-22 17:26:41 [INFO] overdue: excel - 2026-06-16T083438.306.xlsx (2,913,437 bytes)
+2026-06-22 17:26:41 [INFO] 
+======================================================================
+STEP 2 — Load Availability
+======================================================================
+2026-06-22 17:26:41 [INFO] avail sheets: ['2023', '2024', '2025', '2026', 'Sheet2']
+2026-06-22 17:26:41 [INFO] avail sheet '2023': 2038 rows
+2026-06-22 17:26:41 [INFO] avail sheet '2024': 930 rows
+2026-06-22 17:26:42 [INFO] avail sheet '2025': 935 rows
+2026-06-22 17:26:42 [INFO] avail sheet '2026': 468 rows
+2026-06-22 17:26:42 [INFO] df_avail shape: (4371, 23)
+2026-06-22 17:26:42 [INFO] df_avail columns: ['SOURCE_SHEET', 'CUSTOMER_CODE', 'CUSTOMER_NAME', 'TYPE', 'CLEAN_CREDIT_MB', 'CURRENT_DEBT_MILLION_THB', 'EST_FURTHER_AMOUNT', 'DATE', 'ESTIMATE_AMOUNT', 'CCS', 'CCS_PRICE', 'MMA', 'MMA_PRICE', 'NBMA', 'NBMA_PRICE', 'IBMA', 'IBMA_PRICE', 'MAA', 'MAA_PRICE', 'HIGHER_ESTER', 'HIGHER_ESTER_PRICE', 'CURRENT_DEBT_MILLION_THB_PERCENT', 'EST_DEBT']
+2026-06-22 17:26:42 [INFO] df_avail sample:
+  SOURCE_SHEET  CUSTOMER_CODE                     CUSTOMER_NAME     TYPE  CLEAN_CREDIT_MB  CURRENT_DEBT_MILLION_THB  EST_FURTHER_AMOUNT        DATE  ESTIMATE_AMOUNT  CCS CCS_PRICE   MMA MMA_PRICE  NBMA NBMA_PRICE  IBMA IBMA_PRICE  MAA MAA_PRICE HIGHER_ESTER HIGHER_ESTER_PRICE  CURRENT_DEBT_MILLION_THB_PERCENT  EST_DEBT
+0         2023           6901   Mitsubishi Chemical Corporation  Monomer           3400.0                   563.274             0.00000  2023-12-01        563.27400  NaN     72.24   NaN     72.24   NaN        NaN   NaN        NaN  NaN       NaN          NaN                NaN                          0.165669       NaN
+1         2023        2000000    MRT Resins (Thailand) Co.,Ltd.  Monomer             89.0                    48.387             8.66504  2023-12-01         57.05204  NaN      70.0  98.0     55.48  28.0       66.0  14.0       75.0  5.0      66.0          NaN                NaN                          0.543674       NaN
+2         2023        2000001  Kansai Resin (Thailand) Co.,Ltd.  Monomer             50.0                    22.647             3.23400  2023-12-01         25.88100  NaN      75.0  14.0      76.0  14.0       75.0  14.0       80.0  NaN       NaN          NaN                NaN                          0.452940       NaN
+3         2023        2000002   Siam Chemical Industry Co.,Ltd.  Monomer            175.0                    58.400             4.36056  2023-12-01         62.76056  NaN      70.0  24.0     55.69  28.0       72.0  14.0       72.0  NaN       NaN          NaN                NaN                          0.333714       NaN
+4         2023        2000004            Allnex (Thailand) Ltd.  Monomer             21.0                    14.138             0.45500  2023-12-01         14.59300  NaN      70.0   0.0     53.03   7.0       65.0   NaN        NaN  NaN       NaN          NaN                NaN                          0.673238       NaN
+2026-06-22 17:26:42 [INFO] 
+======================================================================
+STEP 3 — Load Overdue
+======================================================================
+2026-06-22 17:26:43 [INFO] overdue sheets: ['XTab DS_1', 'Filter DS_1']
+2026-06-22 17:26:49 [INFO] df_overdue shape: (54053, 10)
+2026-06-22 17:26:49 [INFO] df_overdue columns: ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount']
+2026-06-22 17:26:49 [INFO] df_overdue sample:
+   CompanyCode  Customer               CustomerName  InvoiceDocument OriginalDueDate CollectionDate CustomerDueDate ChequeReceivingDate  OverdueAmount  InvoiceAmount
+0         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007815               #       20210530               #                   #            0.0       24434.89
+1         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007816               #       20210530               #                   #            0.0        3771.05
+2         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007817               #       20210530               #                   #            0.0       22577.43
+3         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007818               #       20210530               #                   #            0.0       28213.17
+4         1190        31  SCG DISTRIBUTION CO.,LTD.       2880007819               #       20210530               #                   #            0.0       18808.78
+2026-06-22 17:26:49 [INFO] 
+======================================================================
+STEP 4 — Match Analysis
+======================================================================
+2026-06-22 17:26:49 [INFO] match_analysis:
+2026-06-22 17:26:49 [INFO]   overdue unique codes: 246
+2026-06-22 17:26:49 [INFO]   avail unique codes: 82
+2026-06-22 17:26:49 [INFO]   MATCHED: 75
+2026-06-22 17:26:49 [INFO]   NOT matched: 171
+2026-06-22 17:26:49 [INFO] 
+======================================================================
+STEP 5 — Company Code Filter
+======================================================================
+2026-06-22 17:26:49 [INFO] CompanyCode column: CompanyCode
+2026-06-22 17:26:49 [INFO] values: [1190, 6130]
+2026-06-22 17:26:49 [INFO] 
+======================================================================
+STEP 6 — Transform Pipeline
+======================================================================
+2026-06-22 17:26:49 [INFO] 
+======================================================================
+STEP 7 — New Overdue Intelligence
+======================================================================
+2026-06-22 17:26:50 [INFO] 
+======================================================================
+STEP 8 — EDA Trend Analysis
+======================================================================
+2026-06-22 17:26:50 [INFO] 
+======================================================================
+STEP 8-1 — Build Trend Dataset
+======================================================================
+2026-06-22 17:26:50 [INFO] Trend pivot shape: (10, 10)
+2026-06-22 17:26:50 [INFO] Periods: ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']
+2026-06-22 17:26:50 [INFO] Selected customers: [6901, 2000036, 2000011, 2000006, 2000010, 2000711, 2000002, 2000016, 2000825, 2000008]
+2026-06-22 17:26:50 [INFO] Step 8 complete — 10 customers, 10 periods
+2026-06-22 17:26:50 [INFO] 
+======================================================================
+STEP 9 — Utilization Risk: Overdue vs Current Debt
+======================================================================
+2026-06-22 17:26:50 [INFO] Step 9 complete — 40 customers, hi-risk 39, lo-risk 1
+2026-06-22 17:26:51 [INFO] Step 9.4 Hexbin v2 — 20 hex cells, max density 16, pts 40
+2026-06-22 17:26:51 [INFO] SESSION COMPLETE
