@@ -2191,366 +2191,573 @@ else:
         )
         st.plotly_chart(fig9b, use_container_width=True)
 
-        # ── 9.3 Comparison Note ───────────────────────────────────────────
-        st.markdown("---")
-        st.subheader("📝 ECharts vs Plotly — ข้อสังเกต")
-        st.markdown("""
-| Feature | Apache ECharts (9.1) | Plotly (9.2) |
-|---|---|---|
-| **Label บน Bubble** | ✅ built-in `label` per point | ⚠️ ต้องใช้ `mode="markers+text"` อาจทับกัน |
-| **Tooltip** | ✅ Custom formatter (JS string) | ✅ `hovertemplate` (Pythonic) |
-| **Quadrant Divider** | ✅ `markLine` inline ใน series | ✅ `add_vline` / `add_hline` แยกต่างหาก |
-| **Bubble Size** | ✅ `symbolSize` per point | ✅ `marker.size` list |
-| **Interactivity** | ✅ Legend toggle, zoom, brush | ✅ Legend toggle, zoom, hover |
-| **Annotation Box** | ❌ ต้องใช้ `markArea` หรือ graphic | ✅ `add_annotation` ง่ายกว่า |
-| **Integration** | ⚠️ ต้องติดตั้ง `streamlit-echarts` | ✅ built-in ใน Streamlit |
-| **Code Style** | JSON/dict (option object) | Python OOP (go.Figure) |
-| **Performance** | ✅ เร็วกว่าบน dataset ใหญ่ | ✅ เพียงพอสำหรับ <5,000 pts |
-        """)
 
-        # ── Full Table ────────────────────────────────────────────────────
-        with st.expander("📋 Full Utilization Risk Table"):
-            tbl9 = (
-                df9_f
-                .sort_values("UtilizationRisk", ascending=False)
-                [[
-                    "CustomerName", "RiskQuadrant", "UtilizationRisk",
-                    "TotalOverdueMB", "CurrentDebtMB", "CleanCreditMB",
-                    "AvgDPD", "MaxDPD", "OverdueInvoices", "TYPE",
-                ]]
-                .copy()
-            )
-            for c in ["UtilizationRisk","TotalOverdueMB","CurrentDebtMB",
-                      "CleanCreditMB","AvgDPD","MaxDPD"]:
-                if c in tbl9.columns:
-                    tbl9[c] = tbl9[c].round(2)
-            st.dataframe(tbl9, hide_index=True, use_container_width=True)
+# =============================================================================
+# Step 10 : Advanced Portfolio Analytics — 3 Approaches Preview
+# (Prototype ก่อน migrate เข้า view_monitoring.py)
+#
+# Approach A : Customer Payment DNA     (Scatter — Behavioral Map)
+# Approach B : Cash Flow Leakage        (Dual Cumulative Line)
+# Approach C : Concentration Risk       (Sunburst)
+#
+# Data used:
+#   ov        — invoice-level (from Step 6B)
+#   cust_risk — customer-level aggregated (from Step 6E)
+#   ov_f      — invoice filtered by date range (from Step 7 global filter)
+# =============================================================================
 
-        log.info(
-            f"Step 9 complete — {len(df9_f)} customers, "
-            f"hi-risk {len(hi_risk)}, lo-risk {len(lo_risk)}"
+lsec("STEP 10 — Advanced Portfolio Analytics Preview")
+st.markdown("---")
+st.header("10. Advanced Portfolio Analytics — 3 Approaches Preview")
+st.caption(
+    "Prototype visualization ก่อนนำเข้า view_monitoring.py — "
+    "ใช้ข้อมูลจาก Step 6 (cust_risk) และ Step 7 (ov_f)"
+)
+
+if cust_risk.empty:
+    st.warning("cust_risk ว่าง — รัน Step 6 ก่อน")
+    st.stop()
+
+tab_a, tab_b, tab_c = st.tabs([
+    "A : Customer Payment DNA",
+    "B : Cash Flow Leakage",
+    "C : Concentration Risk",
+])
+
+# ===========================================================================
+# APPROACH A — Customer Payment DNA
+# X = Avg Delay (AvgDPD), Y = Delay Volatility (StdDPD)
+# Size = TotalInvoices, Color = Quadrant
+# ===========================================================================
+with tab_a:
+    st.subheader("A — Customer Payment DNA")
+    st.caption(
+        "แต่ละจุด = 1 customer | "
+        "X = Avg DPD | Y = Std DPD (Volatility) | "
+        "Size = Total Invoices | Color = Behavioral Quadrant"
+    )
+
+    # ------------------------------------------------------------------
+    # Build per-customer DNA stats จาก ov (invoice-level)
+    # ------------------------------------------------------------------
+    # ใช้ทุก invoice ใน date range (ov_f) ไม่กรองแค่ overdue
+    # เพื่อให้ Collection Rate สะท้อนภาพรวม
+    # ------------------------------------------------------------------
+    ov_dna = ov_f.copy()
+    ov_dna["DPD_filled"] = ov_dna["DPD"].fillna(0).clip(lower=0)
+
+    dna_agg = (
+        ov_dna.groupby(join_key)
+        .agg(
+            AvgDelay      = ("DPD_filled", "mean"),
+            StdDelay      = ("DPD_filled", "std"),
+            MaxDelay      = ("DPD_filled", "max"),
+            TotalInvoices = (join_key,     "count"),
+            OverdueCount  = ("OverdueAmount_num", lambda x: (x > 0).sum()),
         )
-                # ══════════════════════════════════════════════════════════════════
-        # 9.4 — Apache ECharts : Hexbin / Density Scatter
-        # Concept เดิม: x = CurrentDebtMB, y = UtilizationRisk%
-        # แต่เปลี่ยนจาก bubble → hex density grid
-        # ══════════════════════════════════════════════════════════════════
-        st.markdown("---")
-        st.subheader("9.4 — ECharts Hexbin / Density Scatter")
-        st.caption(
-            "มองภาพ Density ของลูกค้า — ช่อง Hex ไหนมีลูกค้ากระจุกตัวมาก = "
-            "สีเข้ม | x = Current Debt | y = Utilization Risk%"
+        .reset_index()
+        .rename(columns={join_key: "Customer"})
+    )
+
+    # Join CustomerName + Type
+    name_map = cust_risk[["Customer", "CustomerName", "TYPE"]].drop_duplicates("Customer")
+    dna_agg  = dna_agg.merge(name_map, on="Customer", how="left")
+    dna_agg["CustomerName"] = dna_agg["CustomerName"].fillna(dna_agg["Customer"].astype(str))
+    dna_agg["TYPE"]         = dna_agg["TYPE"].fillna("Unknown")
+
+    dna_agg["StdDelay"]  = dna_agg["StdDelay"].fillna(0.0)
+    dna_agg["AvgDelay"]  = dna_agg["AvgDelay"].fillna(0.0)
+    dna_agg["MaxDelay"]  = dna_agg["MaxDelay"].fillna(0.0)
+
+    # Collection Rate
+    dna_agg["CollectionRate"] = (
+        (dna_agg["TotalInvoices"] - dna_agg["OverdueCount"])
+        / dna_agg["TotalInvoices"].replace(0, np.nan) * 100
+    ).fillna(0.0).clip(0, 100)
+
+    dna_agg = dna_agg[dna_agg["TotalInvoices"] > 0].reset_index(drop=True)
+
+    if dna_agg.empty:
+        st.info("ไม่มีข้อมูลสำหรับ Payment DNA ในช่วงที่เลือก")
+    else:
+        # Quadrant (median split)
+        med_avg = float(dna_agg["AvgDelay"].median())
+        med_std = float(dna_agg["StdDelay"].median())
+
+        def _dna_quad(avg, std):
+            hi_avg = avg >= med_avg
+            hi_std = std >= med_std
+            if not hi_avg and not hi_std:
+                return "Predictable"
+            elif hi_avg and hi_std:
+                return "Nightmare"
+            elif hi_avg and not hi_std:
+                return "Consistently Late"
+            else:
+                return "Erratic"
+
+        dna_agg["Quadrant"] = dna_agg.apply(
+            lambda r: _dna_quad(r["AvgDelay"], r["StdDelay"]), axis=1
         )
 
-        if ECHARTS_OK:
-            import math
+        QUAD_COLOR = {
+            "Predictable":       "#2A9D8F",
+            "Nightmare":         "#A01F2D",
+            "Consistently Late": "#B5620A",
+            "Erratic":           "#8E6DC0",
+        }
+        QUAD_ORDER = ["Predictable", "Consistently Late", "Erratic", "Nightmare"]
 
-            # ── 9.4-0 : Hexbin computation (pure Python) ─────────────────
-            # Algorithm:
-            #   1. Normalise x, y → grid space
-            #   2. Assign each point to nearest hex centre
-            #   3. Count points per hex → density
-            #   4. Encode hex centre back to data space
+        # Bubble size — TotalInvoices
+        inv_s    = dna_agg["TotalInvoices"].clip(lower=1).astype(float)
+        inv_min  = float(inv_s.min())
+        inv_max  = float(inv_s.max())
+        inv_rng  = max(inv_max - inv_min, 1.0)
+        dna_agg["BubbleSize"] = (
+            8.0 + ((inv_s - inv_min) / inv_rng) * 42.0
+        ).clip(6.0, 50.0)
 
-            HEX_COLS = 18          # number of hex columns across x-axis
-            ASPECT   = 0.55        # y-stretch so hexes look regular on chart
+        # KPI summary
+        qa_col, qb_col, qc_col, qd_col = st.columns(4)
+        for col_ui, quad in zip(
+            [qa_col, qb_col, qc_col, qd_col], QUAD_ORDER
+        ):
+            cnt = int((dna_agg["Quadrant"] == quad).sum())
+            col_ui.metric(quad, f"{cnt} customers")
 
-            x_vals = df9_f["CurrentDebtMB"].values.astype(float)
-            y_vals_raw = df9_f["UtilizationRisk"].values.astype(float)
+        # Figure
+        fig_dna = go.Figure()
+        for quad in QUAD_ORDER:
+            grp = dna_agg[dna_agg["Quadrant"] == quad].copy()
+            if grp.empty:
+                continue
+            fig_dna.add_trace(go.Scatter(
+                x    = grp["AvgDelay"].tolist(),
+                y    = grp["StdDelay"].tolist(),
+                mode = "markers",
+                name = quad,
+                marker = dict(
+                    size     = grp["BubbleSize"].tolist(),
+                    color    = QUAD_COLOR.get(quad, "#8A9BB0"),
+                    opacity  = 0.82,
+                    line     = dict(width=1, color="white"),
+                    sizemode = "diameter",
+                ),
+                text       = grp["CustomerName"].astype(str).tolist(),
+                customdata = list(zip(
+                    grp["AvgDelay"].round(1).tolist(),
+                    grp["StdDelay"].round(1).tolist(),
+                    grp["MaxDelay"].tolist(),
+                    grp["TotalInvoices"].tolist(),
+                    grp["CollectionRate"].round(1).tolist(),
+                )),
+                hovertemplate=(
+                    "<b>%{text}</b><br>"
+                    "────────────────────<br>"
+                    "Avg Delay        : %{customdata[0]:.1f} days<br>"
+                    "Delay Volatility : %{customdata[1]:.1f} days (std)<br>"
+                    "Max Delay        : %{customdata[2]:,} days<br>"
+                    "Total Invoices   : %{customdata[3]:,}<br>"
+                    "Collection Rate  : %{customdata[4]:.1f}%<br>"
+                    "<extra></extra>"
+                ),
+            ))
 
-            x_min, x_max_h = float(x_vals.min()), float(x_vals.max())
-            y_min, y_max_h = float(y_vals_raw.min()), float(y_vals_raw.max())
+        # Quadrant reference lines
+        fig_dna.add_vline(
+            x=med_avg, line_dash="dot", line_color="#cccccc", line_width=1.2,
+            annotation_text=f"Median Avg ({med_avg:.0f}d)",
+            annotation_font=dict(size=8, color="#999999"),
+        )
+        fig_dna.add_hline(
+            y=med_std, line_dash="dot", line_color="#cccccc", line_width=1.2,
+            annotation_text=f"Median Std ({med_std:.0f}d)",
+            annotation_font=dict(size=8, color="#999999"),
+            annotation_position="right",
+        )
 
-            # Guard: avoid division by zero when all values identical
-            x_range = (x_max_h - x_min) or 1.0
-            y_range = (y_max_h - y_min) or 1.0
-
-            # Hex grid geometry
-            hex_w = x_range / HEX_COLS          # hex width in data units
-            hex_h = hex_w * ASPECT * (y_range / x_range) * HEX_COLS
-            # Make hex_h sensible when aspect ratio is extreme
-            HEX_ROWS = max(6, int(y_range / hex_h)) if hex_h > 0 else 10
-            hex_h    = y_range / HEX_ROWS
-
-            def hex_center(px, py):
-                """Return (cx, cy) of the nearest hex centre for point (px, py)."""
-                # Offset-coordinate hex grid (flat-top)
-                col_f  = (px - x_min) / hex_w
-                col_i  = int(round(col_f))
-                offset = 0.5 if col_i % 2 == 1 else 0.0
-                row_f  = (py - y_min) / hex_h - offset
-                row_i  = int(round(row_f))
-                cx = x_min + col_i * hex_w
-                cy = y_min + (row_i + offset) * hex_h
-                return (round(cx, 4), round(cy, 4))
-
-            # Accumulate
-            from collections import defaultdict
-            hex_count   = defaultdict(int)
-            hex_overdue = defaultdict(float)    # sum of TotalOverdueMB per hex
-            hex_names   = defaultdict(list)     # customer names per hex
-
-            for _, row in df9_f.iterrows():
-                hc = hex_center(float(row["CurrentDebtMB"]),
-                                float(row["UtilizationRisk"]))
-                hex_count[hc]   += 1
-                hex_overdue[hc] += float(row["TotalOverdueMB"])
-                hex_names[hc].append(str(row["CustomerName"]))
-
-            max_count  = max(hex_count.values()) if hex_count else 1
-            max_overdue_hex = max(hex_overdue.values()) if hex_overdue else 1.0
-
-            # ── 9.4-1 : ECharts option ───────────────────────────────────
-            # Two series:
-            #   Series 0 — "hex density"  : scatter with large symbolSize,
-            #              symbol = 'circle' tiled as hex proxy,
-            #              color mapped to count
-            #   Series 1 — "raw scatter"  : small dots, colored by quadrant
-            #              shown on top for reference
-
-            # Hex series data  [cx, cy, count, sumOverdueMB, names_str]
-            hex_data = []
-            for (cx, cy), cnt in hex_count.items():
-                hex_data.append([
-                    cx, cy, cnt,
-                    round(hex_overdue[(cx, cy)], 3),
-                    ", ".join(hex_names[(cx, cy)][:5])
-                    + ("…" if len(hex_names[(cx, cy)]) > 5 else ""),
-                ])
-
-            # Symbol size for hex tiles: fixed grid size (data-unit → pixel approx)
-            # ECharts will scale by symbolSize; we use a constant large enough to tile
-            HEX_SYMBOL_SIZE = max(18, int(900 / HEX_COLS))
-
-            # Raw scatter data  [x, y, name, quadrant]
-            raw_scatter_data = []
-            for _, row in df9_f.iterrows():
-                raw_scatter_data.append({
-                    "value": [
-                        round(float(row["CurrentDebtMB"]),    3),
-                        round(float(row["UtilizationRisk"]),  2),
-                    ],
-                    "name":      str(row["CustomerName"]),
-                    "quadrant":  str(row["RiskQuadrant"]),
-                    "itemStyle": {
-                        "color": ECHARTS_COLOR_MAP.get(
-                            str(row["RiskQuadrant"]), "#95a5a6"
-                        ),
-                        "borderColor": "white",
-                        "borderWidth": 1,
-                    },
-                })
-
-            # Visual map: count → colour gradient (low=cool, high=hot)
-            DENSITY_COLORS = [
-                "#eaf4fb",   # 0  — nearly empty
-                "#aed6f1",   # 1
-                "#5dade2",   # 2
-                "#1a5276",   # 3
-                "#f9e79f",   # 4
-                "#f39c12",   # 5
-                "#e74c3c",   # 6  — very dense
-                "#7b241c",   # 7  — max density
-            ]
-
-            echarts_hex_option = {
-                "backgroundColor": "#fafafa",
-                "title": {
-                    "text":     "Hexbin Density — Utilization Risk Map",
-                    "subtext":  (
-                        f"Hex colour = customer density | "
-                        f"Dots = individual customers | "
-                        f"Threshold = {util_threshold}%"
-                    ),
-                    "left":    "center",
-                    "textStyle":    {"fontSize": 15, "fontWeight": "bold"},
-                    "subtextStyle": {"fontSize": 10, "color": "#666"},
-                },
-                "tooltip": {
-                    "trigger": "item",
-                    "formatter": """function(p) {
-                        if (p.seriesIndex === 0) {
-                            // Hex tile
-                            return '<b>Hex Cell</b><br/>'
-                                + 'Center Debt: <b>'  + p.data[0].toFixed(2) + ' MB</b><br/>'
-                                + 'Center Util: <b>'  + p.data[1].toFixed(1) + '%</b><br/>'
-                                + 'Customers: <b>'    + p.data[2] + '</b><br/>'
-                                + 'Sum Overdue: <b>'  + p.data[3].toFixed(2) + ' MB</b><br/>'
-                                + 'Names: '           + p.data[4];
-                        } else {
-                            // Raw dot
-                            return '<b>' + p.data.name + '</b><br/>'
-                                + 'Current Debt: <b>'     + p.data.value[0].toFixed(2) + ' MB</b><br/>'
-                                + 'Utilization Risk: <b>' + p.data.value[1].toFixed(1) + '%</b><br/>'
-                                + 'Quadrant: '            + p.data.quadrant;
-                        }
-                    }""",
-                },
-                "visualMap": {
-                    "show":        True,
-                    "type":        "continuous",
-                    "seriesIndex": 0,           # only map hex series
-                    "min":         1,
-                    "max":         max_count,
-                    "left":        "right",
-                    "top":         "middle",
-                    "orient":      "vertical",
-                    "text":        ["Dense", "Sparse"],
-                    "textStyle":   {"fontSize": 10},
-                    "inRange": {
-                        "color": DENSITY_COLORS,
-                    },
-                    "calculable": True,
-                },
-                "grid": {
-                    "left":         "8%",
-                    "right":        "12%",
-                    "top":          "16%",
-                    "bottom":       "10%",
-                    "containLabel": True,
-                },
-                "xAxis": {
-                    "type":          "value",
-                    "name":          "Current Debt (MB)",
-                    "nameLocation":  "middle",
-                    "nameGap":       30,
-                    "nameTextStyle": {"fontSize": 11},
-                    "splitLine":     {"show": True,
-                                     "lineStyle": {"type": "dashed",
-                                                   "color": "#e0e0e0"}},
-                    "axisLabel":     {"fontSize": 10},
-                },
-                "yAxis": {
-                    "type":          "value",
-                    "name":          "Utilization Risk (%)",
-                    "nameLocation":  "middle",
-                    "nameGap":       48,
-                    "nameTextStyle": {"fontSize": 11},
-                    "splitLine":     {"show": True,
-                                     "lineStyle": {"type": "dashed",
-                                                   "color": "#e0e0e0"}},
-                    "axisLabel":     {"fontSize": 10},
-                },
-                "series": [
-                    # ── Series 0 : Hex density tiles ─────────────────────
-                    {
-                        "name":        "Hex Density",
-                        "type":        "scatter",
-                        "data":        hex_data,
-                        "symbolSize":  HEX_SYMBOL_SIZE,
-                        "symbol":      "roundRect",   # nearest ECharts proxy for hex
-                        "itemStyle":   {
-                            "opacity":     0.72,
-                            "borderColor": "white",
-                            "borderWidth": 1.5,
-                        },
-                        "emphasis": {
-                            "itemStyle": {
-                                "opacity":     1.0,
-                                "borderWidth": 2,
-                            },
-                        },
-                        "encode": {
-                            "x":       0,
-                            "y":       1,
-                            "value":   2,       # drives visualMap
-                        },
-                        "zlevel": 0,
-                        "z":      2,
-                    },
-                    # ── Series 1 : Raw customer dots ─────────────────────
-                    {
-                        "name":       "Customers",
-                        "type":       "scatter",
-                        "data":       raw_scatter_data,
-                        "symbolSize": 6,
-                        "symbol":     "circle",
-                        "itemStyle":  {
-                            "opacity":     0.95,
-                            "borderColor": "white",
-                            "borderWidth": 1,
-                        },
-                        "emphasis": {
-                            "label": {
-                                "show":       True,
-                                "formatter":  "{b}",
-                                "fontSize":   10,
-                                "fontWeight": "bold",
-                                "color":      "#222",
-                            },
-                            "itemStyle": {"opacity": 1.0, "symbolSize": 12},
-                        },
-                        "zlevel": 1,
-                        "z":      4,
-                    },
-                ],
-                # Quadrant divider lines via markLine on a dummy series
-                # → inject into Series 1 directly
-            }
-
-            # Inject markLine into Series 1 (raw dots) for quadrant dividers
-            echarts_hex_option["series"][1]["markLine"] = {
-                "silent":    False,
-                "animation": False,
-                "lineStyle": {"type": "dashed", "width": 1.5, "opacity": 0.6},
-                "label":     {"show": True, "fontSize": 9, "color": "#888"},
-                "data": [
-                    {
-                        "xAxis": round(med_debt, 2),
-                        "name":  f"Debt Median {med_debt:.1f}MB",
-                        "lineStyle": {"color": "#5d6d7e"},
-                    },
-                    {
-                        "yAxis": float(util_threshold),
-                        "name":  f"Risk {util_threshold}%",
-                        "lineStyle": {"color": "#e74c3c"},
-                    },
-                ],
-            }
-
-            st_echarts(
-                options=echarts_hex_option,
-                height="580px",
-                key="echarts_hexbin",
+        # Quadrant background labels
+        x_max_dna = float(dna_agg["AvgDelay"].max()) * 1.1
+        y_max_dna = float(dna_agg["StdDelay"].max()) * 1.1
+        quad_annotations = [
+            (med_avg * 0.25, med_std * 1.65, "Erratic",           QUAD_COLOR["Erratic"]),
+            (med_avg * 1.75, med_std * 1.65, "Nightmare",         QUAD_COLOR["Nightmare"]),
+            (med_avg * 0.25, med_std * 0.30, "Predictable",       QUAD_COLOR["Predictable"]),
+            (med_avg * 1.75, med_std * 0.30, "Consistently Late", QUAD_COLOR["Consistently Late"]),
+        ]
+        for qx, qy, qlabel, qcol in quad_annotations:
+            fig_dna.add_annotation(
+                x=qx, y=qy, text=f"<i>{qlabel}</i>",
+                showarrow=False,
+                font=dict(size=9, color=qcol), opacity=0.50,
             )
 
-            # ── 9.4-2 : Density summary table ────────────────────────────
-            st.caption("📋 Hex Cell Summary — Top 10 Most Dense Cells")
-            hex_summary_rows = []
-            for (cx, cy), cnt in sorted(
-                hex_count.items(), key=lambda kv: -kv[1]
-            )[:10]:
-                # Which quadrant does this hex center fall in?
-                h_quad = "🔴 High Debt · High Risk"
-                if cx < med_debt and cy >= util_threshold:
-                    h_quad = "🟠 Low Debt · High Risk"
-                elif cx >= med_debt and cy < util_threshold:
-                    h_quad = "🟡 High Debt · Low Risk"
-                elif cx < med_debt and cy < util_threshold:
-                    h_quad = "🟢 Low Debt · Low Risk"
-                hex_summary_rows.append({
-                    "Hex Center Debt (MB)":  round(cx, 2),
-                    "Hex Center Util (%)":   round(cy, 2),
-                    "# Customers":           cnt,
-                    "Sum Overdue (MB)":      round(hex_overdue[(cx, cy)], 3),
-                    "Avg Overdue (MB)":      round(hex_overdue[(cx, cy)] / cnt, 3),
-                    "Quadrant":              h_quad,
-                    "Customers":             ", ".join(hex_names[(cx, cy)][:4])
-                                             + ("…" if cnt > 4 else ""),
-                })
-            if hex_summary_rows:
-                st.dataframe(
-                    pd.DataFrame(hex_summary_rows),
-                    hide_index=True,
-                    use_container_width=True,
+        fig_dna.update_layout(
+            title        = "Customer Payment DNA — Avg Delay vs Delay Volatility",
+            xaxis        = dict(title="Average Delay (days)", zeroline=False,
+                                range=[0, max(x_max_dna, 1)]),
+            yaxis        = dict(title="Delay Volatility — Std Dev (days)", zeroline=False,
+                                range=[0, max(y_max_dna, 1)]),
+            height       = 520,
+            legend       = dict(title="Quadrant"),
+            plot_bgcolor = "#f9f9f9",
+        )
+        st.plotly_chart(fig_dna, use_container_width=True, key="step10_dna")
+
+        # Quadrant breakdown table
+        with st.expander("Quadrant Detail Table", expanded=False):
+            show_dna = dna_agg[[
+                "CustomerName", "Quadrant", "AvgDelay", "StdDelay",
+                "MaxDelay", "TotalInvoices", "OverdueCount", "CollectionRate", "TYPE",
+            ]].sort_values(["Quadrant", "AvgDelay"], ascending=[True, False]).copy()
+            for c in ["AvgDelay", "StdDelay", "MaxDelay", "CollectionRate"]:
+                show_dna[c] = show_dna[c].round(1)
+            st.dataframe(show_dna, hide_index=True, use_container_width=True)
+
+
+# ===========================================================================
+# APPROACH B — Expected vs Actual Collection Curve (Cash Flow Leakage)
+# X = Period, Y = Cumulative Cash (InvoiceAmount)
+# Expected = grouped by OriginalDueDate
+# Actual   = grouped by CollectionDate (collected only)
+# ===========================================================================
+with tab_b:
+    st.subheader("B — Expected vs Actual Collection Curve")
+    st.caption(
+        "Expected = ถ้าทุกคนจ่ายตรงตาม OriginalDueDate | "
+        "Actual = จ่ายจริงตาม CollectionDate | "
+        "Gap = Cash Flow Leakage"
+    )
+
+    # Granularity selector (local — ไม่ขึ้นกับ global filter)
+    cf_gran_b = st.selectbox(
+        "Period Granularity",
+        options=["Monthly", "Quarterly", "Yearly"],
+        index=0,
+        key="step10_cf_gran",
+    )
+    GRAN_MAP_B = {"Monthly": "M", "Quarterly": "Q", "Yearly": "Y"}
+    gran_pb = GRAN_MAP_B[cf_gran_b]
+
+    # ------------------------------------------------------------------
+    # Expected — group InvoiceAmount by OriginalDueDate
+    # ------------------------------------------------------------------
+    ov_cf = ov_f.copy()
+    ov_cf["InvoiceAmount_num"] = pd.to_numeric(
+        ov_cf.get("InvoiceAmount_num", ov_cf.get("InvoiceAmount", 0)),
+        errors="coerce",
+    ).fillna(0.0).abs()
+
+    exp_df = ov_cf.dropna(subset=["OriginalDueDate_parsed"]).copy()
+    exp_df["Period_exp"] = (
+        exp_df["OriginalDueDate_parsed"].dt.to_period(gran_pb).astype(str)
+    )
+    exp_grp = (
+        exp_df.groupby("Period_exp")
+        .agg(Expected=("InvoiceAmount_num", "sum"))
+        .reset_index()
+        .sort_values("Period_exp")
+        .reset_index(drop=True)
+    )
+    exp_grp["CumExpected"] = exp_grp["Expected"].cumsum()
+
+    # ------------------------------------------------------------------
+    # Actual — group InvoiceAmount by CollectionDate (collected only)
+    # ------------------------------------------------------------------
+    act_df = ov_cf.dropna(subset=["CollectionDate_parsed"]).copy()
+    act_df = act_df[act_df["CollectionDate_parsed"].notna()]
+    act_df["Period_act"] = (
+        act_df["CollectionDate_parsed"].dt.to_period(gran_pb).astype(str)
+    )
+    act_grp = (
+        act_df.groupby("Period_act")
+        .agg(Actual=("InvoiceAmount_num", "sum"))
+        .reset_index()
+        .rename(columns={"Period_act": "Period_exp"})
+        .sort_values("Period_exp")
+        .reset_index(drop=True)
+    )
+    act_grp["CumActual"] = act_grp["Actual"].cumsum()
+
+    # Merge
+    cf_merged = exp_grp[["Period_exp", "CumExpected"]].merge(
+        act_grp[["Period_exp", "CumActual"]],
+        on="Period_exp", how="left",
+    )
+    cf_merged["CumActual"] = (
+        cf_merged["CumActual"]
+        .ffill()                  
+        .fillna(0.0)              
+    )
+    cf_merged = cf_merged.sort_values("Period_exp").reset_index(drop=True)
+
+    if cf_merged.empty or cf_merged["CumExpected"].sum() == 0:
+        st.info("ไม่มีข้อมูล InvoiceAmount ในช่วงที่เลือก")
+    else:
+        total_exp_b = float(cf_merged["CumExpected"].iloc[-1])
+        total_act_b = float(cf_merged["CumActual"].iloc[-1])
+        leakage_b   = total_exp_b - total_act_b
+        leakage_pct_b = leakage_b / total_exp_b * 100 if total_exp_b > 0 else 0.0
+
+        # KPI
+        kb1, kb2, kb3 = st.columns(3)
+        kb1.metric("Expected Collection", f"{total_exp_b:,.0f} THB")
+        kb2.metric("Actual Collection",   f"{total_act_b:,.0f} THB")
+        kb3.metric(
+            "Cash Flow Leakage",
+            f"{leakage_b:,.0f} THB",
+            delta=f"{leakage_pct_b:.1f}% of expected",
+            delta_color="inverse",
+        )
+
+        # Figure
+        fig_cf = go.Figure()
+
+        # Leakage fill zone
+        if total_act_b > 0:
+            fig_cf.add_trace(go.Scatter(
+                x          = cf_merged["Period_exp"].tolist(),
+                y          = cf_merged["CumExpected"].tolist(),
+                mode       = "none",
+                fill       = "tonexty",
+                fillcolor  = "rgba(160,31,45,0.07)",
+                showlegend = False,
+                hoverinfo  = "skip",
+            ))
+
+        # Actual line
+        if total_act_b > 0:
+            fig_cf.add_trace(go.Scatter(
+                x    = cf_merged["Period_exp"].tolist(),
+                y    = cf_merged["CumActual"].tolist(),
+                mode = "lines+markers",
+                name = "Actual Collection",
+                line = dict(color="#3A7BD5", width=2.5),
+                marker = dict(size=6, color="#3A7BD5",
+                              line=dict(color="white", width=1.5)),
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    "Actual Cumulative : %{y:,.0f} THB<br>"
+                    "<extra></extra>"
+                ),
+            ))
+
+        # Expected line
+        fig_cf.add_trace(go.Scatter(
+            x    = cf_merged["Period_exp"].tolist(),
+            y    = cf_merged["CumExpected"].tolist(),
+            mode = "lines+markers",
+            name = "Expected Collection",
+            line = dict(color="#2A9D8F", width=2.5, dash="dot"),
+            marker = dict(symbol="diamond", size=6, color="#2A9D8F",
+                          line=dict(color="white", width=1.5)),
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "Expected Cumulative : %{y:,.0f} THB<br>"
+                "<extra></extra>"
+            ),
+        ))
+
+        y_max_cf = float(cf_merged["CumExpected"].max()) * 1.15
+        fig_cf.update_layout(
+            title        = "Expected vs Actual Collection Curve — Cash Flow Leakage",
+            xaxis        = dict(title="Period", showgrid=False, tickangle=-35),
+            yaxis        = dict(title="Cumulative Cash (THB)", range=[0, y_max_cf],
+                                tickformat=",.0f"),
+            height       = 480,
+            legend       = dict(orientation="h", y=-0.2),
+            plot_bgcolor = "#f9f9f9",
+        )
+        st.plotly_chart(fig_cf, use_container_width=True, key="step10_cashflow")
+
+        # Gap table
+        with st.expander("Period Gap Detail", expanded=False):
+            cf_detail = cf_merged.copy()
+            cf_detail["Gap"] = cf_detail["CumExpected"] - cf_detail["CumActual"]
+            cf_detail["Gap %"] = (
+                cf_detail["Gap"] / cf_detail["CumExpected"].replace(0, np.nan) * 100
+            ).fillna(0.0).round(1)
+            for c in ["CumExpected", "CumActual", "Gap"]:
+                cf_detail[c] = cf_detail[c].round(0).astype(int)
+            st.dataframe(
+                cf_detail.rename(columns={
+                    "Period_exp":   "Period",
+                    "CumExpected":  "Cum Expected (THB)",
+                    "CumActual":    "Cum Actual (THB)",
+                    "Gap":          "Gap (THB)",
+                    "Gap %":        "Gap %",
+                }),
+                hide_index=True,
+                use_container_width=True,
+            )
+
+
+# ===========================================================================
+# APPROACH C — Customer Concentration Risk (Sunburst)
+# DebtShare = CustomerDebt / PortfolioDebt
+# Tier: Critical >= 20%, Major >= 5%, Minor < 5%
+# ===========================================================================
+with tab_c:
+    st.subheader("C — Customer Concentration Risk")
+    st.caption(
+        "Sunburst: Level 1 = Tier (Critical/Major/Minor) | "
+        "Level 2 = Customer | "
+        "Size = TotalOverdueMB"
+    )
+
+    conc_df = cust_risk[cust_risk["TotalOverdueMB"] > 0].copy()
+
+    # ใช้ CurrentDebtMB ถ้ามี, fallback TotalOverdueMB
+    if (conc_df["CurrentDebtMB"] > 0).any():
+        debt_col_c  = "CurrentDebtMB"
+        debt_label  = "Current Debt (MB)"
+    else:
+        debt_col_c  = "TotalOverdueMB"
+        debt_label  = "Total Overdue (MB)"
+
+    if sel_types:
+        conc_df = conc_df[conc_df["TYPE"].isin(sel_types)].copy()
+
+    if conc_df.empty:
+        st.info("ไม่มีข้อมูลสำหรับ Concentration Risk")
+    else:
+        portfolio_total_c = float(conc_df[debt_col_c].sum())
+        if portfolio_total_c == 0:
+            st.info("Portfolio total = 0")
+        else:
+            conc_df["DebtShare"] = (
+                conc_df[debt_col_c] / portfolio_total_c * 100
+            ).round(2)
+
+            def _conc_tier(share):
+                if share >= 20: return "Critical"
+                elif share >= 5:  return "Major"
+                else:             return "Minor"
+
+            conc_df["Tier"] = conc_df["DebtShare"].apply(_conc_tier)
+
+            TIER_COLOR_C = {
+                "Critical": "#A01F2D",
+                "Major":    "#B5620A",
+                "Minor":    "#3A7BD5",
+            }
+
+            # KPI
+            top3_c = conc_df.sort_values("DebtShare", ascending=False).head(3)
+            kc1, kc2, kc3 = st.columns(3)
+            kc1.metric("Portfolio Total", f"{portfolio_total_c:,.1f} MB",
+                       f"{int(len(conc_df))} customers")
+            kc2.metric("Critical (≥20%)",
+                       f"{int((conc_df['Tier']=='Critical').sum())} customers",
+                       delta="Highest concentration risk", delta_color="inverse")
+            kc3.metric("Top 3 Share",
+                       f"{float(top3_c['DebtShare'].sum()):.1f}%",
+                       "of total portfolio")
+
+            # Sunburst data
+            sb_ids, sb_labels, sb_parents, sb_values, sb_colors, sb_text = (
+                [], [], [], [], [], []
+            )
+
+            # Root
+            sb_ids.append("Portfolio")
+            sb_labels.append("Portfolio")
+            sb_parents.append("")
+            sb_values.append(float(portfolio_total_c))
+            sb_colors.append("#3D5166")
+            sb_text.append(f"Total: {portfolio_total_c:,.1f} MB")
+
+            for tier in ["Critical", "Major", "Minor"]:
+                tier_df    = conc_df[conc_df["Tier"] == tier]
+                tier_total = float(tier_df[debt_col_c].sum())
+                tier_share = tier_total / portfolio_total_c * 100
+
+                sb_ids.append(tier)
+                sb_labels.append(f"{tier} ({tier_share:.1f}%)")
+                sb_parents.append("Portfolio")
+                sb_values.append(tier_total)
+                sb_colors.append(TIER_COLOR_C[tier])
+                sb_text.append(
+                    f"{tier}: {tier_total:,.1f} MB ({tier_share:.1f}%)"
                 )
 
-            log.info(
-                f"Step 9.4 Hexbin — {len(hex_data)} hex cells, "
-                f"max density {max_count}, customers {len(df9_f)}"
+                # Top 10 customers per tier
+                tier_sorted = tier_df.sort_values(debt_col_c, ascending=False)
+                top_c       = tier_sorted.head(10)
+                rest_c      = tier_sorted.iloc[10:]
+
+                for _, row in top_c.iterrows():
+                    cname  = str(row["CustomerName"])
+                    cdebt  = float(row[debt_col_c])
+                    cshare = float(row["DebtShare"])
+                    label_short = cname[:22] + "…" if len(cname) > 22 else cname
+
+                    sb_ids.append(f"{tier}__{cname}")
+                    sb_labels.append(label_short)
+                    sb_parents.append(tier)
+                    sb_values.append(cdebt)
+                    sb_colors.append(TIER_COLOR_C[tier])
+                    sb_text.append(f"{cname}<br>{cdebt:,.1f} MB ({cshare:.1f}%)")
+
+                if not rest_c.empty:
+                    rest_d = float(rest_c[debt_col_c].sum())
+                    rest_s = rest_d / portfolio_total_c * 100
+                    sb_ids.append(f"{tier}__Others")
+                    sb_labels.append(f"Others ({len(rest_c)})")
+                    sb_parents.append(tier)
+                    sb_values.append(rest_d)
+                    sb_colors.append(TIER_COLOR_C[tier])
+                    sb_text.append(
+                        f"Others ({len(rest_c)} customers)<br>"
+                        f"{rest_d:,.1f} MB ({rest_s:.1f}%)"
+                    )
+
+            fig_sun = go.Figure(go.Sunburst(
+                ids           = sb_ids,
+                labels        = sb_labels,
+                parents       = sb_parents,
+                values        = sb_values,
+                marker        = dict(
+                    colors = sb_colors,
+                    line   = dict(color="white", width=1.5),
+                ),
+                text          = sb_text,
+                hovertemplate = "<b>%{label}</b><br>%{text}<extra></extra>",
+                textfont      = dict(size=10),
+                insidetextorientation = "radial",
+                branchvalues  = "total",
+                maxdepth      = 2,
+            ))
+            fig_sun.update_layout(
+                title        = f"Customer Concentration Risk — {debt_label}",
+                height       = 520,
+                margin       = dict(l=0, r=0, t=40, b=0),
+                paper_bgcolor= "rgba(0,0,0,0)",
             )
-        else:
-            st.info("ติดตั้ง `streamlit-echarts` เพื่อดู Hexbin chart")
+            st.plotly_chart(fig_sun, use_container_width=True, key="step10_sunburst")
+
+            # Top 15 table
+            with st.expander("Top 15 Customers by Debt Share", expanded=False):
+                top15_c = (
+                    conc_df[["CustomerName", "TYPE", debt_col_c, "DebtShare", "Tier"]]
+                    .sort_values("DebtShare", ascending=False)
+                    .head(15)
+                    .copy()
+                    .reset_index(drop=True)
+                )
+                top15_c.index = top15_c.index + 1
+                top15_c[debt_col_c]   = top15_c[debt_col_c].round(2)
+                top15_c["DebtShare"]  = top15_c["DebtShare"].round(2)
+                st.dataframe(
+                    top15_c.rename(columns={
+                        "CustomerName": "Customer",
+                        "TYPE":         "Type",
+                        debt_col_c:     debt_label,
+                        "DebtShare":    "Share %",
+                    }),
+                    hide_index=False,
+                    use_container_width=True,
+                )
 
 
 # =============================================================================

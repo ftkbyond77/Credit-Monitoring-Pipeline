@@ -7,6 +7,7 @@ from views.view_loading   import render as render_loading
 from views.view_transform import render as render_transform
 from views.view_avail     import render as render_avail
 from views.view_overdue import render as render_overdue  
+from views.view_monitoring import render as render_monitoring
 
 st.set_page_config(page_title="Credit Automate Dashboard", layout="wide")
 
@@ -134,14 +135,7 @@ elif active == 'avail':
     render_avail()
 
 elif active == 'overdue_dash':
-    render_overdue()                                    # <-- แทนที่ st.info(...)
+    render_overdue()                                    
 
 elif active == 'monitoring':
-    st.markdown(
-        '<div class="dash-title-bar">'
-        '<div class="dash-title">Credit Monitoring</div>'
-        '<div class="dash-subtitle">Coming soon</div>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
-    st.info("Credit Monitoring — coming soon")
+    render_monitoring()
