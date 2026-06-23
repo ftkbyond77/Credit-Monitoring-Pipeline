@@ -797,188 +797,237 @@ def _join_avail(
 
 
 # =============================================================================
-# Row 1 Right (40%) : Risk Matrix Bubble — X=DPD, Y=OverdueAmount, 4 Quadrants
+# Row 1 Right (40%) : OverdueAmount Distribution — Pie Chart
+# แทน _render_risk_matrix (Risk Matrix Bubble) เดิม
 # =============================================================================
 def _render_risk_matrix(df: pd.DataFrame, df_avail: pd.DataFrame = None):
     """
-    Risk Matrix — ECharts Bubble
-    X    = DPD
-    Y    = ESTIMATE_AMOUNT (fallback: TotalOverdue/1e6 ถ้าไม่มี avail)
-    Size = Current Debt    (fallback: TotalOverdue log-scaled)
-    Color= Zone (Critical / Monitor / Watch / Low Risk)
+    แสดงสัดส่วนของ OverdueAmount แบ่งตาม type:
+      - Negative  : Credit Note  (OverdueAmount < 0)  → ฟ้า
+      - Zero      : No Debt      (OverdueAmount == 0) → คราม
+      - Positive  : Debit Note   (OverdueAmount > 0)  → แดงเลือดหมู
+    df_avail รับมาเพื่อ compatibility กับ render() — ไม่ได้ใช้ในฟังก์ชันนี้
     """
-    import numpy as np
+    import plotly.express as px
 
-    if "Customer" not in df.columns:
-        st.info("Join key 'Customer' not found.")
+    if "OverdueAmount" not in df.columns:
+        st.info("OverdueAmount column not found.")
         return
 
-    overdue_df = df[df["IsOverdue"]].copy()
-    if overdue_df.empty:
-        st.info("No overdue records for risk matrix.")
+    # ----------------------------------------------------------------
+    # Color tokens
+    # ----------------------------------------------------------------
+    COLOR_NEG  = "#3A7BD5"   # ฟ้า — Credit Note
+    COLOR_ZERO = "#2A6496"   # คราม — No Debt
+    COLOR_POS  = "#8B1A2A"   # แดงเลือดหมู — Debit Note
+
+    # ----------------------------------------------------------------
+    # จัดกลุ่ม OverdueAmount → 3 categories
+    # ----------------------------------------------------------------
+    s = df["OverdueAmount"]
+
+    neg_count  = int((s < 0).sum())
+    zero_count = int((s == 0).sum())
+    pos_count  = int((s > 0).sum())
+
+    neg_sum  = float(s[s < 0].sum())
+    pos_sum  = float(s[s > 0].sum())
+
+    total_records = neg_count + zero_count + pos_count
+    if total_records == 0:
+        st.info("No OverdueAmount data in selected period.")
         return
 
-    agg = (
-        overdue_df.groupby(["Customer", "CustomerName", "DueYear"])
-        .agg(TotalOverdue=("OverdueAbs", "sum"), AvgDPD=("DPD", "mean"))
-        .reset_index()
-    )
+    # ----------------------------------------------------------------
+    # สร้าง pie_data — ไม่กรองออกแม้ count = 0
+    # ใช้ min_count เพื่อบังคับให้ slice เล็กมากยังเห็นได้
+    # ----------------------------------------------------------------
+    MIN_VISIBLE = max(1, int(total_records * 0.002))  # อย่างน้อย 0.2% ของ total
 
-    # Join avail
-    agg = _join_avail(agg, df_avail, extra_cols=["ESTIMATE_AMOUNT"])
-
-    # Fallback columns
-    if "CURRENT_DEBT_MILLION_THB" not in agg.columns:
-        agg["CURRENT_DEBT_MILLION_THB"] = float("nan")
-    if "ESTIMATE_AMOUNT" not in agg.columns:
-        agg["ESTIMATE_AMOUNT"] = float("nan")
-
-    agg["CURRENT_DEBT_MILLION_THB"] = agg["CURRENT_DEBT_MILLION_THB"].fillna(0.0)
-    agg["ESTIMATE_AMOUNT"]          = agg["ESTIMATE_AMOUNT"].fillna(0.0)
-
-    # ถ้า ESTIMATE_AMOUNT เป็น 0 ทั้งหมด ใช้ TotalOverdue/1e6 แทน
-    if agg["ESTIMATE_AMOUNT"].sum() == 0:
-        agg["ESTIMATE_AMOUNT"] = agg["TotalOverdue"] / 1_000_000
-
-    # ถ้า CURRENT_DEBT_MILLION_THB เป็น 0 ทั้งหมด ใช้ TotalOverdue log แทน
-    if agg["CURRENT_DEBT_MILLION_THB"].sum() == 0:
-        agg["CURRENT_DEBT_MILLION_THB"] = agg["TotalOverdue"] / 1_000_000
-
-    # Quadrant
-    median_dpd = float(agg["AvgDPD"].median())
-    median_est = float(agg["ESTIMATE_AMOUNT"].median())
-
-    ZONE_COLOR = {
-        "Critical": "#A01F2D",
-        "Monitor":  "#8E6DC0",
-        "Watch":    "#E8A838",
-        "Low Risk": "#3A7BD5",
-    }
-
-    def _zone(row):
-        high_dpd = row["AvgDPD"]        >= median_dpd
-        high_est = row["ESTIMATE_AMOUNT"] >= median_est
-        if   high_dpd and high_est:      return "Critical"
-        elif not high_dpd and high_est:  return "Monitor"
-        elif high_dpd and not high_est:  return "Watch"
-        else:                            return "Low Risk"
-
-    agg["Zone"] = agg.apply(_zone, axis=1)
-
-    # Bubble size — normalise 10-55
-    d_vals         = agg["CURRENT_DEBT_MILLION_THB"].clip(lower=0)
-    d_min, d_max   = d_vals.min(), d_vals.max()
-    d_range        = max(d_max - d_min, 1)
-    agg["BubbleSize"] = (10 + ((d_vals - d_min) / d_range) * 45).clip(upper=55)
-
-    # Build series
-    series = []
-    for zone, color in ZONE_COLOR.items():
-        grp = agg[agg["Zone"] == zone]
-        if grp.empty:
-            continue
-        data = [
-            {
-                "name":  str(r["CustomerName"]),
-                "value": [
-                    round(float(r["AvgDPD"]), 1),
-                    round(float(r["ESTIMATE_AMOUNT"]), 2),
-                    round(float(r["BubbleSize"]), 1),
-                ],
-                "debt":    round(float(r["CURRENT_DEBT_MILLION_THB"]), 2),
-                "overdue": round(float(r["TotalOverdue"]), 0),
-            }
-            for _, r in grp.iterrows()
-        ]
-        series.append({
-            "name":       zone,
-            "type":       "scatter",
-            "data":       data,
-            "symbolSize": "function(val){ return val[2]; }",
-            "itemStyle":  {
-                "color":       color,
-                "opacity":     0.82,
-                "borderColor": "#ffffff",
-                "borderWidth": 1,
-            },
-            "emphasis": {
-                "label": {
-                    "show":      True,
-                    "formatter": "function(p){ return p.data.name.substring(0,14); }",
-                    "fontSize":  8,
-                    "color":     "#2c3e50",
-                },
-            },
-        })
-
-    # Median dividers
-    series.append({
-        "name": "",
-        "type": "scatter",
-        "data": [],
-        "markLine": {
-            "silent":    True,
-            "symbol":    ["none", "none"],
-            "lineStyle": {"type": "dashed", "color": "#cccccc", "width": 1},
-            "data":      [{"xAxis": median_dpd}, {"yAxis": median_est}],
-            "label":     {"show": False},
-        },
+    pie_data = pd.DataFrame({
+        "Type": [
+            "Credit Note (Negative)",
+            "No Debt (Zero)",
+            "Debit Note (Positive)",
+        ],
+        "RawCount": [neg_count, zero_count, pos_count],
+        "SumAmount": [neg_sum, 0.0, pos_sum],
+        "Color": [COLOR_NEG, COLOR_ZERO, COLOR_POS],
     })
 
-    x_max = float(agg["AvgDPD"].max()) * 1.12
-    y_max = float(agg["ESTIMATE_AMOUNT"].max()) * 1.15
+    # บังคับ minimum visual size — เฉพาะ slice ที่มีข้อมูลจริง (RawCount > 0)
+    pie_data["VisualCount"] = pie_data.apply(
+        lambda r: max(r["RawCount"], MIN_VISIBLE) if r["RawCount"] > 0 else 0,
+        axis=1,
+    )
 
-    option = {
-        "backgroundColor": "transparent",
-        "tooltip": {
-            "trigger": "item",
-            "formatter": (
-                "function(p){"
-                "  if(!p.data || !p.data.value) return '';"
-                "  return '<b>' + p.data.name + '</b><br/>'"
-                "       + 'DPD: '          + p.data.value[0] + ' days<br/>'"
-                "       + 'Est. Amount: '  + p.data.value[1].toLocaleString() + ' MB<br/>'"
-                "       + 'Current Debt: ' + p.data.debt.toLocaleString()    + ' MB<br/>'"
-                "       + 'Overdue: '      + p.data.overdue.toLocaleString() + ' THB';"
-                "}"
-            ),
+    # กรองเฉพาะ slice ที่มีข้อมูลจริง
+    pie_data = pie_data[pie_data["RawCount"] > 0].reset_index(drop=True)
+
+    if pie_data.empty:
+        st.info("No records to display.")
+        return
+
+    # คำนวณ % จาก RawCount จริง (ไม่ใช่ VisualCount)
+    pie_data["PctReal"] = (
+        pie_data["RawCount"] / pie_data["RawCount"].sum() * 100
+    ).round(2)
+
+    # ----------------------------------------------------------------
+    # Plotly Express Pie — ใช้ VisualCount เป็น value เพื่อให้เห็น slice
+    # แต่ label/hover แสดง RawCount + PctReal จริง
+    # ----------------------------------------------------------------
+    fig = px.pie(
+        pie_data,
+        names  = "Type",
+        values = "VisualCount",
+        color  = "Type",
+        color_discrete_map={
+            row["Type"]: row["Color"]
+            for _, row in pie_data.iterrows()
         },
-        "legend": {
-            "data":      list(ZONE_COLOR.keys()),
-            "bottom":    0,
-            "itemWidth": 10, "itemHeight": 10,
-            "textStyle": {"fontSize": 10},
-        },
-        "graphic": [
-            {"type": "text", "style": {"text": "CRITICAL", "fill": "#A01F2D",
-             "fontSize": 11, "fontWeight": "bold"}, "left": "78%", "top": "6%"},
-            {"type": "text", "style": {"text": "MONITOR",  "fill": "#8E6DC0",
-             "fontSize": 11, "fontWeight": "bold"}, "left": "4%",  "top": "6%"},
-            {"type": "text", "style": {"text": "WATCH",    "fill": "#E8A838",
-             "fontSize": 11, "fontWeight": "bold"}, "left": "78%", "top": "84%"},
-            {"type": "text", "style": {"text": "LOW RISK", "fill": "#3A7BD5",
-             "fontSize": 11, "fontWeight": "bold"}, "left": "4%",  "top": "84%"},
+        hole = 0.44,
+    )
+
+    fig.update_traces(
+        # แสดง % จริง (คำนวณเอง) ไม่ใช่จาก VisualCount
+        text = [
+            f"<b>{row['PctReal']:.2f}%</b>"
+            for _, row in pie_data.iterrows()
         ],
-        "xAxis": {
-            "name":         "DPD (Days Past Due)",
-            "nameLocation": "middle",
-            "nameGap":      30,
-            "max":          x_max,
-            "splitLine":    {"show": True, "lineStyle": {"type": "dashed", "color": "#eeeeee"}},
-            "axisLabel":    {"fontSize": 9},
-        },
-        "yAxis": {
-            "name":         "Estimate Amount (MB)",
-            "nameLocation": "middle",
-            "nameGap":      55,
-            "max":          y_max,
-            "splitLine":    {"show": True, "lineStyle": {"type": "dashed", "color": "#eeeeee"}},
-            "axisLabel":    {"fontSize": 9},
-        },
-        "series": series,
-    }
+        textinfo      = "text",
+        textfont_size = 11,
+        hovertemplate = (
+            "<b>%{label}</b><br>"
+            "Records    : <b>%{customdata[0]:,}</b><br>"
+            "Sum Amount : %{customdata[1]:,.0f} THB<br>"
+            "Share      : %{customdata[2]:.2f}%"
+            "<extra></extra>"
+        ),
+        customdata = [
+            [row["RawCount"], row["SumAmount"], row["PctReal"]]
+            for _, row in pie_data.iterrows()
+        ],
+        marker = dict(line=dict(color="white", width=2)),
+        # ดึง slice เล็ก (Credit Note) ออกมาให้เห็นชัด
+        pull = [
+            0.10 if row["RawCount"] == pie_data["RawCount"].min() else 0.0
+            for _, row in pie_data.iterrows()
+        ],
+    )
 
-    st_echarts(option, height="400px", key="echart_risk_matrix")
+    # Center annotation
+    fig.add_annotation(
+        text      = f"<b>{total_records:,}</b><br><span style='font-size:10px'>records</span>",
+        x=0.5, y=0.5,
+        font      = dict(size=15, color=FONT_COLOR),
+        showarrow = False,
+    )
+
+    fig.update_layout(
+        height        = 360,
+        margin        = dict(l=0, r=0, t=30, b=0),
+        paper_bgcolor = "rgba(0,0,0,0)",
+        plot_bgcolor  = "rgba(0,0,0,0)",
+        font          = dict(color=FONT_COLOR, family="Inter, sans-serif", size=10),
+        title         = dict(
+            text = "OverdueAmount Distribution — by Type",
+            font = dict(size=11, color=FONT_COLOR),
+            x    = 0,
+        ),
+        legend = dict(
+            orientation = "h",
+            yanchor     = "top",
+            y           = -0.06,
+            xanchor     = "center",
+            x           = 0.5,
+            font        = dict(size=10),
+            itemwidth   = 80,
+        ),
+        showlegend = True,
+    )
+
+    st.plotly_chart(fig, use_container_width=True, key="chart_overdue_pie")
+
+    # ----------------------------------------------------------------
+    # Summary — compact text row มีกรอบเบาๆ (ไม่ใช้ KPI card)
+    # ----------------------------------------------------------------
+    # หา row แต่ละ type จาก pie_data (อาจมีบางตัว = 0 ถูกกรองออก)
+    def _get(type_name: str, field: str, default):
+        row = pie_data[pie_data["Type"] == type_name]
+        return row.iloc[0][field] if not row.empty else default
+
+    neg_c  = _get("Credit Note (Negative)", "RawCount",  0)
+    neg_s  = _get("Credit Note (Negative)", "SumAmount", 0.0)
+    neg_p  = _get("Credit Note (Negative)", "PctReal",   0.0)
+    zero_c = _get("No Debt (Zero)",         "RawCount",  0)
+    zero_p = _get("No Debt (Zero)",         "PctReal",   0.0)
+    pos_c  = _get("Debit Note (Positive)",  "RawCount",  0)
+    pos_s  = _get("Debit Note (Positive)",  "SumAmount", 0.0)
+    pos_p  = _get("Debit Note (Positive)",  "PctReal",   0.0)
+
+    summary_html = f"""
+    <div style="
+        border: 1px solid #d0dae6;
+        border-radius: 10px;
+        padding: 10px 16px;
+        background: rgba(255,255,255,0.6);
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 4px;
+    ">
+        <!-- Credit Note -->
+        <div style="flex:1; border-right:1px solid #e0e8f0; padding-right:12px;">
+            <div style="
+                font-size:0.62rem; font-weight:700; letter-spacing:0.07em;
+                text-transform:uppercase; color:{COLOR_NEG}; margin-bottom:3px;
+            ">Credit Note (Neg)</div>
+            <div style="font-size:1.0rem; font-weight:700; color:{COLOR_NEG};">
+                {neg_c:,}
+                <span style="font-size:0.68rem; font-weight:400; color:#6b7a8d;">
+                    records ({neg_p:.2f}%)
+                </span>
+            </div>
+            <div style="font-size:0.68rem; color:#6b7a8d; margin-top:2px;">
+                Sum: {neg_s:,.0f} THB
+            </div>
+        </div>
+        <!-- No Debt -->
+        <div style="flex:1; border-right:1px solid #e0e8f0; padding: 0 12px;">
+            <div style="
+                font-size:0.62rem; font-weight:700; letter-spacing:0.07em;
+                text-transform:uppercase; color:{COLOR_ZERO}; margin-bottom:3px;
+            ">No Debt (Zero)</div>
+            <div style="font-size:1.0rem; font-weight:700; color:{COLOR_ZERO};">
+                {zero_c:,}
+                <span style="font-size:0.68rem; font-weight:400; color:#6b7a8d;">
+                    records ({zero_p:.2f}%)
+                </span>
+            </div>
+            <div style="font-size:0.68rem; color:#6b7a8d; margin-top:2px;">
+                Amount = 0
+            </div>
+        </div>
+        <!-- Debit Note -->
+        <div style="flex:1; padding-left:12px;">
+            <div style="
+                font-size:0.62rem; font-weight:700; letter-spacing:0.07em;
+                text-transform:uppercase; color:{COLOR_POS}; margin-bottom:3px;
+            ">Debit Note (Pos)</div>
+            <div style="font-size:1.0rem; font-weight:700; color:{COLOR_POS};">
+                {pos_c:,}
+                <span style="font-size:0.68rem; font-weight:400; color:#6b7a8d;">
+                    records ({pos_p:.2f}%)
+                </span>
+            </div>
+            <div style="font-size:0.68rem; color:#6b7a8d; margin-top:2px;">
+                Sum: {pos_s:,.0f} THB
+            </div>
+        </div>
+    </div>
+    """
+    st.markdown(summary_html, unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -1104,14 +1153,13 @@ def _render_exposure_utilization(df_overdue_filtered: pd.DataFrame, df_avail: pd
     st.plotly_chart(fig, use_container_width=True, key="chart_aging_dist_bucket")
 
 
-# =============================================================================
-# Section 3C : Overdue Velocity — Option 2
-# =============================================================================
 def _render_overdue_velocity(df: pd.DataFrame):
     """
     Overdue Velocity
-    ใช้ df_filtered จาก main filter โดยตรง
-    Auto-detect granularity จากช่วงข้อมูลที่มี :
+    รับ df_filtered จาก _render_filters() โดยตรง
+    (ผ่าน CompanyCode / OriginalDueDate / CollectionDate / CustomerName filter แล้ว)
+
+    Auto-detect granularity จากช่วงข้อมูลที่มีหลัง filter:
       - span >= 365 days  → Yearly
       - span >= 60 days   → Monthly
       - span >= 14 days   → Weekly
@@ -1126,10 +1174,14 @@ def _render_overdue_velocity(df: pd.DataFrame):
         st.info("No overdue records for Velocity analysis.")
         return
 
-    # -- Auto-detect granularity from data span ------------------------------
-    date_min = overdue_df["OriginalDueDate"].dropna().min()
-    date_max = overdue_df["OriginalDueDate"].dropna().max()
-    span_days = (date_max - date_min).days if pd.notna(date_min) and pd.notna(date_max) else 0
+    # -- Auto-detect granularity from data span (post-filter) ----------------
+    date_min  = overdue_df["OriginalDueDate"].dropna().min()
+    date_max  = overdue_df["OriginalDueDate"].dropna().max()
+    span_days = (
+        (date_max - date_min).days
+        if pd.notna(date_min) and pd.notna(date_max)
+        else 0
+    )
 
     if span_days >= 365:
         auto_gran = "Yearly"
@@ -1145,7 +1197,7 @@ def _render_overdue_velocity(df: pd.DataFrame):
         f"— auto granularity : {auto_gran}"
     )
 
-    # -- Period label (ใช้ helpers เดิม) -------------------------------------
+    # -- Period label --------------------------------------------------------
     overdue_df["_PeriodLabel"] = _period_label_series(overdue_df, auto_gran)
     overdue_df["_SortKey"]     = _sort_key_series(overdue_df, auto_gran)
 
@@ -1158,7 +1210,8 @@ def _render_overdue_velocity(df: pd.DataFrame):
 
     if len(all_periods) < 2:
         st.info(
-            f"Only {len(all_periods)} period(s) found ({', '.join(all_periods)}). "
+            f"Only {len(all_periods)} period(s) found "
+            f"({', '.join(all_periods)}). "
             f"At least 2 periods are required to compute Velocity. "
             f"Try expanding the date range in the main filter above."
         )
@@ -1168,10 +1221,10 @@ def _render_overdue_velocity(df: pd.DataFrame):
     curr_period = all_periods[-1]
 
     st.caption(
-        f"Comparing  {prev_period}  (previous)  vs  {curr_period}  (current)"
+        f"Comparing  **{prev_period}**  (previous)  vs  **{curr_period}**  (current)"
     )
 
-    # -- ส่วนที่เหลือเหมือนเดิมทุกอย่าง ------------------------------------
+    # -- Aggregate per period ------------------------------------------------
     def _agg_period(period_str: str) -> pd.DataFrame:
         sub = overdue_df[overdue_df["_PeriodLabel"] == period_str]
         return (
@@ -1205,6 +1258,7 @@ def _render_overdue_velocity(df: pd.DataFrame):
         / df_vel["PrevOverdue"].replace(0.0, float("nan"))
         * 100
     )
+
     fill_vals = pd.Series(
         [100.0 if c > 0 else 0.0 for c in df_vel["CurrOverdue"]],
         index=df_vel.index,
@@ -1261,7 +1315,7 @@ def _render_overdue_velocity(df: pd.DataFrame):
         (
             "Net Portfolio Change",
             f"{net_change:+,.0f} THB",
-            f"{prev_period} to {curr_period}",
+            f"{prev_period} → {curr_period}",
             "danger" if net_change > 0 else "safe",
         ),
     ]
@@ -1275,6 +1329,7 @@ def _render_overdue_velocity(df: pd.DataFrame):
 
     col_bar, col_scatter = st.columns([1, 1], gap="medium")
 
+    # -- Left : Top 15 Growth Bar --------------------------------------------
     with col_bar:
         top_growth = (
             df_vel[df_vel["VelocityAmt"] > 0]
@@ -1282,15 +1337,14 @@ def _render_overdue_velocity(df: pd.DataFrame):
             .head(15)
             .copy()
         )
-
         if top_growth.empty:
             st.info("No customers with increasing overdue in this period.")
         else:
             fig_bar = go.Figure()
             fig_bar.add_trace(go.Bar(
-                x           = [float(v) for v in top_growth["VelocityAmt"]],
-                y           = [str(v)   for v in top_growth["CustomerName"]],
-                orientation = "h",
+                x            = [float(v) for v in top_growth["VelocityAmt"]],
+                y            = [str(v)   for v in top_growth["CustomerName"]],
+                orientation  = "h",
                 marker_color = [
                     TIER_COLOR.get(t, PALETTE["nodata"])
                     for t in top_growth["VelocityTier"]
@@ -1302,10 +1356,10 @@ def _render_overdue_velocity(df: pd.DataFrame):
                         top_growth["VelocityPct"],
                     )
                 ],
-                textposition = "outside",
-                cliponaxis   = False,
-                textfont     = dict(size=8, color=FONT_COLOR),
-                customdata   = list(zip(
+                textposition  = "outside",
+                cliponaxis    = False,
+                textfont      = dict(size=8, color=FONT_COLOR),
+                customdata    = list(zip(
                     [float(v) for v in top_growth["CurrOverdue"]],
                     [float(v) for v in top_growth["PrevOverdue"]],
                 )),
@@ -1321,24 +1375,30 @@ def _render_overdue_velocity(df: pd.DataFrame):
                 "height": 420,
                 "margin": dict(l=0, r=90, t=20, b=4),
                 "xaxis": dict(
-                    title="Delta Overdue Amount (THB)",
-                    showgrid=True, gridcolor=GRID_COLOR,
-                    color=FONT_COLOR, tickfont=dict(size=8),
-                    zeroline=False,
+                    title    = "Delta Overdue Amount (THB)",
+                    showgrid = True, gridcolor=GRID_COLOR,
+                    color    = FONT_COLOR, tickfont=dict(size=8),
+                    zeroline = False,
                 ),
                 "yaxis": dict(
-                    autorange="reversed",
-                    showgrid=False,
-                    color=FONT_COLOR, tickfont=dict(size=8),
+                    autorange = "reversed",
+                    showgrid  = False,
+                    color     = FONT_COLOR, tickfont=dict(size=8),
                 ),
                 "showlegend": False,
                 "title": dict(
-                    text=f"Top 15 Overdue Growth  ({prev_period} to {curr_period})",
-                    font=dict(size=10, color=FONT_COLOR), x=0,
+                    text = (
+                        f"Top 15 Overdue Growth  "
+                        f"({prev_period} → {curr_period})"
+                    ),
+                    font = dict(size=10, color=FONT_COLOR), x=0,
                 ),
             })
-            st.plotly_chart(fig_bar, use_container_width=True, key="chart_velocity_bar")
+            st.plotly_chart(
+                fig_bar, use_container_width=True, key="chart_velocity_bar"
+            )
 
+    # -- Right : Scatter (Previous vs Current) --------------------------------
     with col_scatter:
         df_plot = df_vel[
             (df_vel["CurrOverdue"] > 0) | (df_vel["PrevOverdue"] > 0)
@@ -1347,15 +1407,14 @@ def _render_overdue_velocity(df: pd.DataFrame):
         if df_plot.empty:
             st.info("No data for scatter plot.")
         else:
-            s_vals  = df_plot["CurrOverdue"].clip(lower=1.0)
+            s_vals       = df_plot["CurrOverdue"].clip(lower=1.0)
             s_min, s_max = float(s_vals.min()), float(s_vals.max())
-            s_range = max(s_max - s_min, 1.0)
+            s_range      = max(s_max - s_min, 1.0)
             df_plot["BubbleSize"] = (
                 6 + ((s_vals - s_min) / s_range) * 44
             ).clip(upper=50)
 
             fig_sc = go.Figure()
-
             for tier in TIER_ORDER:
                 grp = df_plot[df_plot["VelocityTier"] == tier]
                 if grp.empty:
@@ -1372,7 +1431,7 @@ def _render_overdue_velocity(df: pd.DataFrame):
                         line     = dict(width=1, color="white"),
                         sizemode = "diameter",
                     ),
-                    text = [str(v) for v in grp["CustomerName"]],
+                    text       = [str(v) for v in grp["CustomerName"]],
                     customdata = list(zip(
                         [float(v) for v in grp["VelocityAmt"]],
                         [float(v) for v in grp["VelocityPct"]],
@@ -1382,7 +1441,8 @@ def _render_overdue_velocity(df: pd.DataFrame):
                         f"Previous ({prev_period}) : %{{x:,.2f}} THB<br>"
                         f"Current  ({curr_period}) : %{{y:,.2f}} THB<br>"
                         "Delta        : %{customdata[0]:+,.2f} THB<br>"
-                        "Delta %%     : %{customdata[1]:+.1f}%%<extra></extra>"
+                        "Delta %%     : %{customdata[1]:+.1f}%%"
+                        "<extra></extra>"
                     ),
                 ))
 
@@ -1390,58 +1450,72 @@ def _render_overdue_velocity(df: pd.DataFrame):
                 df_plot["CurrOverdue"].max(),
                 df_plot["PrevOverdue"].max(),
             )) * 1.08
+
+            # Diagonal reference line (y = x)
             fig_sc.add_trace(go.Scatter(
-                x=[0.0, axis_max], y=[0.0, axis_max],
-                mode="lines",
-                line=dict(dash="dot", color="#cccccc", width=1),
-                showlegend=False,
-                hoverinfo="skip",
+                x          = [0.0, axis_max],
+                y          = [0.0, axis_max],
+                mode       = "lines",
+                line       = dict(dash="dot", color="#cccccc", width=1),
+                showlegend = False,
+                hoverinfo  = "skip",
             ))
+
+            # ✅ Annotation ถูกต้อง:
+            # เหนือเส้น  = y > x = Current > Previous = แย่ลง → บนซ้าย
+            # ใต้เส้น   = y < x = Current < Previous = ดีขึ้น → ล่างขวา
             fig_sc.add_annotation(
-                x=axis_max * 0.12, y=axis_max * 0.88,
-                text="Deteriorating<br>(above line)",
-                showarrow=False,
-                font=dict(color=PALETTE["crimson"], size=9),
-                bgcolor="rgba(255,255,255,0.75)",
+                x         = axis_max * 0.12,
+                y         = axis_max * 0.88,
+                text      = "Deteriorating<br>(above line)",
+                showarrow = False,
+                font      = dict(color=PALETTE["crimson"], size=9),
+                bgcolor   = "rgba(255,255,255,0.75)",
             )
             fig_sc.add_annotation(
-                x=axis_max * 0.75, y=axis_max * 0.10,
-                text="Improving<br>(below line)",
-                showarrow=False,
-                font=dict(color=PALETTE["jade"], size=9),
-                bgcolor="rgba(255,255,255,0.75)",
+                x         = axis_max * 0.88,
+                y         = axis_max * 0.12,
+                text      = "Improving<br>(below line)",
+                showarrow = False,
+                font      = dict(color=PALETTE["jade"], size=9),
+                bgcolor   = "rgba(255,255,255,0.75)",
             )
+
             apply_base_layout(fig_sc, {
                 "height": 420,
                 "margin": dict(l=0, r=20, t=20, b=4),
                 "xaxis": dict(
-                    title=f"Previous Overdue — {prev_period} (THB)",
-                    showgrid=True, gridcolor=GRID_COLOR,
-                    color=FONT_COLOR, tickfont=dict(size=8),
-                    range=[-axis_max * 0.02, axis_max],
-                    zeroline=False,
+                    title    = f"Previous Overdue — {prev_period} (THB)",
+                    showgrid = True, gridcolor=GRID_COLOR,
+                    color    = FONT_COLOR, tickfont=dict(size=8),
+                    range    = [-axis_max * 0.02, axis_max],
+                    zeroline = False,
                 ),
                 "yaxis": dict(
-                    title=f"Current Overdue — {curr_period} (THB)",
-                    showgrid=True, gridcolor=GRID_COLOR,
-                    color=FONT_COLOR, tickfont=dict(size=8),
-                    range=[-axis_max * 0.02, axis_max],
-                    zeroline=False,
+                    title    = f"Current Overdue — {curr_period} (THB)",
+                    showgrid = True, gridcolor=GRID_COLOR,
+                    color    = FONT_COLOR, tickfont=dict(size=8),
+                    range    = [-axis_max * 0.02, axis_max],
+                    zeroline = False,
                 ),
                 "legend": dict(
-                    font=dict(size=9),
-                    orientation="h",
-                    yanchor="bottom", y=1.01,
-                    xanchor="right",  x=1,
+                    font        = dict(size=9),
+                    orientation = "h",
+                    yanchor     = "bottom", y=1.01,
+                    xanchor     = "right",  x=1,
                 ),
                 "title": dict(
-                    text="Previous vs Current Period",
-                    font=dict(size=10, color=FONT_COLOR), x=0,
+                    text = (
+                        f"Previous vs Current Period  "
+                        f"({prev_period} → {curr_period})"
+                    ),
+                    font = dict(size=10, color=FONT_COLOR), x=0,
                 ),
             })
             st.plotly_chart(
                 fig_sc, use_container_width=True, key="chart_velocity_scatter"
             )
+
 
 
 # =============================================================================
