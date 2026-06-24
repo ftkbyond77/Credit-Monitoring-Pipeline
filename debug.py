@@ -2761,6 +2761,1324 @@ with tab_c:
 
 
 # =============================================================================
+# Step 11 : Credit Risk Network Graph — 5 Approaches
+# ใช้ตัวแปรจาก Step 6E (cust_risk) และ Step 7 (cr_f, ov_f)
+#
+# 11.A : Customer Similarity Network  (Cosine / Euclidean)
+# 11.B : Customer → Risk Bucket Network
+# 11.C : Exposure Concentration Network
+# 11.D : Credit Risk Propagation + Community Detection (Louvain / Leiden)
+# 11.E : Bipartite Network — ECharts Graph Series  ← Impact สูงสุด
+# =============================================================================
+
+lsec("STEP 11 — Credit Risk Network Graph")
+st.markdown("---")
+st.header("11. Credit Risk Network Graph")
+
+if cust_risk.empty:
+    st.warning("cust_risk ว่าง — รัน Step 6 ก่อน")
+    st.stop()
+
+# ใช้ cr_f ถ้ามี ไม่งั้น fallback cust_risk
+graph_base = cr_f.copy() if (not cr_f.empty) else cust_risk.copy()
+graph_base = graph_base.reset_index(drop=True)
+
+# Guard — fillna ทุก numeric column ที่จะใช้
+for _c in ["UtilizationPct", "CurrentDebtMB", "TotalOverdueMB",
+           "AvgDPD", "OverdueRatio", "CleanCreditMB"]:
+    if _c in graph_base.columns:
+        graph_base[_c] = graph_base[_c].fillna(0.0)
+
+try:
+    from streamlit_echarts import st_echarts
+    ECHARTS_OK = True
+except ImportError:
+    ECHARTS_OK = False
+    st.warning("streamlit-echarts ไม่ได้ติดตั้ง — Step 11.E จะข้ามไป")
+
+import math
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
+import plotly.graph_objects as go
+
+# =============================================================================
+# Helper — short name (ตัดชื่อยาว)
+# =============================================================================
+def _short(name: str, n: int = 20) -> str:
+    s = str(name)
+    return s[:n] + "…" if len(s) > n else s
+
+# =============================================================================
+# Helper — Risk Tier (ใช้ร่วมกันทุก sub-step)
+# =============================================================================
+def _tier(util, dpd):
+    u = float(util) if not pd.isna(util) else 0.0
+    d = float(dpd)  if not pd.isna(dpd)  else 0.0
+    if u >= 80 and d >= 60: return "Critical"
+    elif u >= 80 or d >= 60: return "High Risk"
+    elif u >= 50 or d >= 30: return "Watch"
+    else:                    return "Healthy"
+
+TIER_HEX = {
+    "Critical":  "#A01F2D",
+    "High Risk": "#B5620A",
+    "Watch":     "#E8A838",
+    "Healthy":   "#2A9D8F",
+    "Unknown":   "#8A9BB0",
+}
+
+graph_base["RiskTier"] = graph_base.apply(
+    lambda r: _tier(r["UtilizationPct"], r["AvgDPD"]), axis=1
+)
+
+# =============================================================================
+# Tab layout
+# =============================================================================
+tab11a, tab11b, tab11c, tab11d, tab11e = st.tabs([
+    "11.A  Similarity Network",
+    "11.B  Risk Bucket Network",
+    "11.C  Exposure Concentration",
+    "11.D  Risk Propagation + Community",
+    "11.E  Bipartite (ECharts)",
+])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11.A : Customer Similarity Network
+# Feature vector : [Utilization, CurrentDebt, TotalOverdue, AvgDPD]
+# Metric         : Cosine Similarity  OR  Euclidean Distance
+# Edge           : เชื่อมเมื่อ similarity เกิน threshold
+# ─────────────────────────────────────────────────────────────────────────────
+with tab11a:
+    st.subheader("11.A — Customer Similarity Network")
+    st.caption(
+        "ลูกค้าที่มีพฤติกรรมเครดิตคล้ายกันจะเชื่อมกัน | "
+        "Feature Vector: [Utilization%, CurrentDebt, TotalOverdue, AvgDPD]"
+    )
+
+    # Controls
+    ca1, ca2, ca3, ca4 = st.columns([1.5, 1.5, 1.5, 1.5])
+    with ca1:
+        sim_metric = st.selectbox(
+            "Similarity Metric",
+            ["Cosine Similarity", "Euclidean Distance"],
+            key="sim_metric",
+        )
+    with ca2:
+        sim_threshold = st.slider(
+            "Edge Threshold (similarity)",
+            min_value=0.50, max_value=0.99, value=0.85, step=0.01,
+            key="sim_thresh",
+            help="Cosine: เชื่อมถ้า similarity >= threshold\n"
+                 "Euclidean: เชื่อมถ้า distance <= (1-threshold)*max_dist",
+        )
+    with ca3:
+        sim_top_n = st.slider(
+            "Top N Customers",
+            min_value=5, max_value=min(50, len(graph_base)),
+            value=min(20, len(graph_base)), step=5,
+            key="sim_top_n",
+        )
+    with ca4:
+        sim_show_isolated = st.checkbox(
+            "Show isolated nodes", value=True, key="sim_isolated"
+        )
+
+    df_sim = (
+        graph_base
+        .sort_values("TotalOverdueMB", ascending=False)
+        .head(sim_top_n)
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    # Feature matrix
+    feat_cols = ["UtilizationPct", "CurrentDebtMB", "TotalOverdueMB", "AvgDPD"]
+    feat_cols = [c for c in feat_cols if c in df_sim.columns]
+    X_raw = df_sim[feat_cols].fillna(0).values.astype(float)
+
+    scaler = MinMaxScaler()
+    X_scaled = scaler.fit_transform(X_raw)
+
+    # Similarity / Distance matrix
+    if sim_metric == "Cosine Similarity":
+        # Add epsilon เพื่อกัน zero-vector
+        X_eps    = X_scaled + 1e-9
+        sim_mat  = cosine_similarity(X_eps)
+        # เชื่อมถ้า similarity >= threshold (และไม่ใช่ตัวเอง)
+        def _connected(i, j):
+            return i != j and sim_mat[i, j] >= sim_threshold
+        def _edge_weight(i, j):
+            return float(sim_mat[i, j])
+    else:
+        dist_mat = euclidean_distances(X_scaled)
+        max_dist = float(dist_mat.max()) or 1.0
+        dist_thresh = (1.0 - sim_threshold) * max_dist
+        def _connected(i, j):
+            return i != j and dist_mat[i, j] <= dist_thresh
+        def _edge_weight(i, j):
+            # แปลง distance → similarity-like score
+            return float(1.0 - dist_mat[i, j] / max_dist)
+
+    # Build edges
+    edges_sim = []
+    for i in range(len(df_sim)):
+        for j in range(i + 1, len(df_sim)):
+            if _connected(i, j):
+                edges_sim.append((i, j, _edge_weight(i, j)))
+
+    # Connected node set
+    connected_nodes = set()
+    for e in edges_sim:
+        connected_nodes.add(e[0])
+        connected_nodes.add(e[1])
+
+    # Layout — force-directed approximation (spring layout manual)
+    n = len(df_sim)
+    angles = [2 * math.pi * i / n for i in range(n)]
+    # Base radius — connected nodes inner, isolated outer
+    pos_x = [math.cos(a) * (1.8 if i in connected_nodes else 3.2)
+              for i, a in enumerate(angles)]
+    pos_y = [math.sin(a) * (1.8 if i in connected_nodes else 3.2)
+              for i, a in enumerate(angles)]
+
+    # Figure
+    fig_sim = go.Figure()
+
+    # Edges
+    for (i, j, w) in edges_sim:
+        alpha = max(0.15, min(float(w), 0.85))
+        fig_sim.add_trace(go.Scatter(
+            x=[pos_x[i], pos_x[j], None],
+            y=[pos_y[i], pos_y[j], None],
+            mode="lines",
+            line=dict(
+                color=f"rgba(100,150,200,{alpha:.2f})",
+                width=max(0.5, w * 3),
+            ),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+    # Nodes — grouped by RiskTier
+    for tier in ["Critical", "High Risk", "Watch", "Healthy", "Unknown"]:
+        idxs = [i for i in range(n)
+                if df_sim.iloc[i]["RiskTier"] == tier
+                and (sim_show_isolated or i in connected_nodes)]
+        if not idxs:
+            continue
+
+        fig_sim.add_trace(go.Scatter(
+            x=[pos_x[i] for i in idxs],
+            y=[pos_y[i] for i in idxs],
+            mode="markers+text",
+            name=tier,
+            marker=dict(
+                size=[
+                    10 + float(df_sim.iloc[i]["TotalOverdueMB"])
+                    / max(float(graph_base["TotalOverdueMB"].max()), 0.001) * 28
+                    for i in idxs
+                ],
+                color=TIER_HEX.get(tier, "#8A9BB0"),
+                opacity=0.85,
+                line=dict(color="white", width=1.5),
+            ),
+            text=[_short(df_sim.iloc[i]["CustomerName"]) for i in idxs],
+            textposition="top center",
+            textfont=dict(size=8, color="#2d3748"),
+            hovertext=[
+                f"<b>{df_sim.iloc[i]['CustomerName']}</b><br>"
+                f"Tier         : {df_sim.iloc[i]['RiskTier']}<br>"
+                f"Utilization  : {df_sim.iloc[i]['UtilizationPct']:.1f}%<br>"
+                f"CurrentDebt  : {df_sim.iloc[i]['CurrentDebtMB']:.2f} MB<br>"
+                f"TotalOverdue : {df_sim.iloc[i]['TotalOverdueMB']:.2f} MB<br>"
+                f"Avg DPD      : {df_sim.iloc[i]['AvgDPD']:.0f} days<br>"
+                f"Connections  : {sum(1 for e in edges_sim if i in (e[0],e[1]))}"
+                for i in idxs
+            ],
+            hovertemplate="%{hovertext}<extra></extra>",
+        ))
+
+    fig_sim.update_layout(
+        title=dict(
+            text=(
+                f"Customer Similarity Network — {sim_metric} "
+                f"(threshold={sim_threshold:.2f}) | "
+                f"Edges: {len(edges_sim)}"
+            ),
+            font=dict(size=12), x=0,
+        ),
+        height=580,
+        plot_bgcolor="#f8fafc",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+        legend=dict(orientation="h", y=1.05, x=0,
+                    bgcolor="rgba(255,255,255,0.85)", bordercolor="#d0dae6", borderwidth=1),
+        hoverlabel=dict(bgcolor="white", bordercolor="#d0dae6",
+                        font=dict(size=11, color="#1B2A3B")),
+        margin=dict(l=20, r=20, t=60, b=20),
+    )
+    st.plotly_chart(fig_sim, use_container_width=True, key="net11a")
+
+    # Similarity matrix heatmap
+    with st.expander("Similarity Matrix Heatmap", expanded=False):
+        names_sim = [_short(r["CustomerName"], 16) for _, r in df_sim.iterrows()]
+        if sim_metric == "Cosine Similarity":
+            mat_display = sim_mat
+            colorscale  = "Blues"
+            ztitle      = "Cosine Similarity"
+        else:
+            mat_display = 1.0 - dist_mat / max(float(dist_mat.max()), 1e-9)
+            colorscale  = "RdYlGn"
+            ztitle      = "Similarity (1 - norm dist)"
+
+        fig_heat = go.Figure(go.Heatmap(
+            z=mat_display.tolist(),
+            x=names_sim, y=names_sim,
+            colorscale=colorscale,
+            zmin=0, zmax=1,
+            hovertemplate="X: %{x}<br>Y: %{y}<br>Score: %{z:.3f}<extra></extra>",
+        ))
+        fig_heat.update_layout(
+            title=f"{ztitle} Matrix",
+            height=480,
+            margin=dict(l=10, r=10, t=40, b=10),
+        )
+        st.plotly_chart(fig_heat, use_container_width=True, key="net11a_heat")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11.B : Customer → Risk Bucket Network (Bipartite Plotly)
+# Left  = Customer nodes
+# Right = DPD Bucket nodes
+# Edge  = Customer อยู่ใน bucket นั้น, weight = OverdueMB
+# ─────────────────────────────────────────────────────────────────────────────
+with tab11b:
+    st.subheader("11.B — Customer → Risk Bucket Network")
+    st.caption(
+        "Bipartite: Customer (ซ้าย) → DPD Bucket (ขวา) | "
+        "Edge weight = TotalOverdueMB | "
+        "Node size = OverdueMB (Customer) / Total exposure (Bucket)"
+    )
+
+    cb1, cb2 = st.columns([2, 2])
+    with cb1:
+        bucket_top_n = st.slider(
+            "Top N Customers (by TotalOverdueMB)",
+            min_value=5, max_value=min(40, len(graph_base)),
+            value=min(15, len(graph_base)), step=5,
+            key="bucket_top_n",
+        )
+    with cb2:
+        bucket_edge_col = st.selectbox(
+            "Edge Weight Column",
+            ["TotalOverdueMB", "CurrentDebtMB", "OverdueRatio"],
+            key="bucket_edge_col",
+        )
+
+    df_bkt = (
+        graph_base
+        .sort_values("TotalOverdueMB", ascending=False)
+        .head(bucket_top_n)
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    # DPD Bucket assignment
+    BUCKETS = ["Current", "1-30 DPD", "31-60 DPD", "61-90 DPD", "90+ DPD"]
+    BKT_COLOR = {
+        "Current":    "#2A9D8F",
+        "1-30 DPD":  "#3A7BD5",
+        "31-60 DPD": "#E8A838",
+        "61-90 DPD": "#B5620A",
+        "90+ DPD":   "#A01F2D",
+    }
+
+    def _dpd_bucket(dpd):
+        d = float(dpd) if not pd.isna(dpd) else 0.0
+        if d <= 0:   return "Current"
+        elif d <= 30: return "1-30 DPD"
+        elif d <= 60: return "31-60 DPD"
+        elif d <= 90: return "61-90 DPD"
+        else:         return "90+ DPD"
+
+    df_bkt["DPDBucket"] = df_bkt["AvgDPD"].apply(_dpd_bucket)
+
+    # Layout — customers on left (x=0), buckets on right (x=1)
+    n_custs   = len(df_bkt)
+    n_buckets = len(BUCKETS)
+
+    # Customer y-positions — evenly spaced
+    cust_y = {
+        i: 1.0 - i / max(n_custs - 1, 1)
+        for i in range(n_custs)
+    }
+    # Bucket y-positions — evenly spaced
+    bkt_y = {
+        b: 1.0 - j / max(n_buckets - 1, 1)
+        for j, b in enumerate(BUCKETS)
+    }
+
+    fig_bkt = go.Figure()
+
+    # Edges
+    edge_bx, edge_by = [], []
+    edge_w_list = []
+    for i, row in df_bkt.iterrows():
+        bkt   = row["DPDBucket"]
+        ew    = float(row.get(bucket_edge_col, 0))
+        cy    = cust_y[i]
+        by    = bkt_y[bkt]
+        alpha = max(0.15, min(ew / max(float(df_bkt[bucket_edge_col].max()), 0.001), 0.90))
+        col   = BKT_COLOR.get(bkt, "#aaaaaa")
+
+        fig_bkt.add_trace(go.Scatter(
+            x=[0.15, 0.85, None],
+            y=[cy, by, None],
+            mode="lines",
+            line=dict(
+                color=col,
+                width=max(0.8, ew / max(float(df_bkt[bucket_edge_col].max()), 0.001) * 5),
+            ),
+            opacity=float(alpha),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+    # Customer nodes (left)
+    max_ov_b = float(df_bkt["TotalOverdueMB"].max()) or 1.0
+    fig_bkt.add_trace(go.Scatter(
+        x=[0.15] * n_custs,
+        y=[cust_y[i] for i in range(n_custs)],
+        mode="markers+text",
+        name="Customer",
+        marker=dict(
+            size=[
+                10 + float(df_bkt.iloc[i]["TotalOverdueMB"]) / max_ov_b * 28
+                for i in range(n_custs)
+            ],
+            color=[TIER_HEX.get(df_bkt.iloc[i]["RiskTier"], "#8A9BB0")
+                   for i in range(n_custs)],
+            opacity=0.88,
+            line=dict(color="white", width=1.5),
+        ),
+        text=[_short(df_bkt.iloc[i]["CustomerName"], 18) for i in range(n_custs)],
+        textposition="middle left",
+        textfont=dict(size=8, color="#2d3748"),
+        hovertext=[
+            f"<b>{df_bkt.iloc[i]['CustomerName']}</b><br>"
+            f"DPD Bucket    : {df_bkt.iloc[i]['DPDBucket']}<br>"
+            f"Risk Tier     : {df_bkt.iloc[i]['RiskTier']}<br>"
+            f"TotalOverdue  : {df_bkt.iloc[i]['TotalOverdueMB']:.2f} MB<br>"
+            f"CurrentDebt   : {df_bkt.iloc[i]['CurrentDebtMB']:.2f} MB<br>"
+            f"Avg DPD       : {df_bkt.iloc[i]['AvgDPD']:.0f} days"
+            for i in range(n_custs)
+        ],
+        hovertemplate="%{hovertext}<extra></extra>",
+    ))
+
+    # Bucket nodes (right)
+    bkt_exposure = df_bkt.groupby("DPDBucket")["TotalOverdueMB"].sum()
+    bkt_count    = df_bkt.groupby("DPDBucket")["Customer"].count()
+    max_bkt_exp  = float(bkt_exposure.max()) if not bkt_exposure.empty else 1.0
+
+    fig_bkt.add_trace(go.Scatter(
+        x=[0.85] * n_buckets,
+        y=[bkt_y[b] for b in BUCKETS],
+        mode="markers+text",
+        name="DPD Bucket",
+        marker=dict(
+            size=[
+                14 + float(bkt_exposure.get(b, 0)) / max(max_bkt_exp, 0.001) * 34
+                for b in BUCKETS
+            ],
+            color=[BKT_COLOR[b] for b in BUCKETS],
+            symbol="diamond",
+            opacity=0.90,
+            line=dict(color="white", width=2),
+        ),
+        text=BUCKETS,
+        textposition="middle right",
+        textfont=dict(size=10, color="#2d3748", family="Inter, sans-serif"),
+        hovertext=[
+            f"<b>{b}</b><br>"
+            f"Customers     : {int(bkt_count.get(b, 0))}<br>"
+            f"Total Exposure: {float(bkt_exposure.get(b, 0)):.2f} MB"
+            for b in BUCKETS
+        ],
+        hovertemplate="%{hovertext}<extra></extra>",
+    ))
+
+    fig_bkt.update_layout(
+        title=dict(
+            text=f"Customer → DPD Bucket Network | Weight: {bucket_edge_col}",
+            font=dict(size=12), x=0,
+        ),
+        height=max(520, n_custs * 30 + 100),
+        plot_bgcolor="#f8fafc",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                   visible=False, range=[-0.2, 1.2]),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+        legend=dict(orientation="h", y=1.05, x=0,
+                    bgcolor="rgba(255,255,255,0.85)", bordercolor="#d0dae6", borderwidth=1),
+        hoverlabel=dict(bgcolor="white", bordercolor="#d0dae6",
+                        font=dict(size=11, color="#1B2A3B")),
+        margin=dict(l=120, r=120, t=60, b=20),
+    )
+    st.plotly_chart(fig_bkt, use_container_width=True, key="net11b")
+
+    # Bucket Summary
+    st.markdown("**Bucket Exposure Summary**")
+    bkt_summary = (
+        df_bkt.groupby("DPDBucket")
+        .agg(
+            Customers    = ("Customer",       "count"),
+            TotalOverdue = ("TotalOverdueMB", "sum"),
+            TotalDebt    = ("CurrentDebtMB",  "sum"),
+            AvgDPD       = ("AvgDPD",         "mean"),
+        )
+        .reindex(BUCKETS, fill_value=0)
+        .reset_index()
+    )
+    portfolio_total_b = float(bkt_summary["TotalOverdue"].sum())
+    bkt_summary["Share %"] = (
+        bkt_summary["TotalOverdue"]
+        / max(portfolio_total_b, 0.001) * 100
+    ).round(1)
+    for _c in ["TotalOverdue", "TotalDebt", "AvgDPD"]:
+        bkt_summary[_c] = bkt_summary[_c].round(2)
+    st.dataframe(
+        bkt_summary.rename(columns={
+            "DPDBucket":   "Bucket",
+            "Customers":   "# Customers",
+            "TotalOverdue":"Overdue (MB)",
+            "TotalDebt":   "Debt (MB)",
+            "AvgDPD":      "Avg DPD",
+            "Share %":     "Portfolio Share %",
+        }),
+        hide_index=True, use_container_width=True, height=220,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11.C : Exposure Concentration Network
+# Node size  = CurrentDebtMB
+# Edge       = เชื่อมลูกค้าที่มี Debt / Overdue ใกล้กัน
+# Cluster    = Large / Medium / Small Exposure
+# ─────────────────────────────────────────────────────────────────────────────
+with tab11c:
+    st.subheader("11.C — Exposure Concentration Network")
+    st.caption(
+        "เชื่อมลูกค้าที่มี Debt หรือ Overdue ใกล้กัน → เห็น Concentration Cluster | "
+        "Node size = CurrentDebtMB | Color = Exposure Tier"
+    )
+
+    cc1, cc2, cc3 = st.columns([1.5, 1.5, 1.5])
+    with cc1:
+        conc_edge_basis = st.selectbox(
+            "Edge Connection Basis",
+            ["CurrentDebtMB", "TotalOverdueMB"],
+            key="conc_basis",
+            help="เชื่อมลูกค้าที่มีค่านี้ใกล้กัน",
+        )
+    with cc2:
+        conc_pct_thresh = st.slider(
+            "Proximity Threshold (%)",
+            min_value=5, max_value=50, value=25, step=5,
+            key="conc_pct_thresh",
+            help="เชื่อมถ้า |A - B| / max <= threshold%",
+        )
+    with cc3:
+        conc_top_n = st.slider(
+            "Top N Customers",
+            min_value=5, max_value=min(40, len(graph_base)),
+            value=min(20, len(graph_base)), step=5,
+            key="conc_top_n",
+        )
+
+    df_conc = (
+        graph_base
+        .sort_values("CurrentDebtMB", ascending=False)
+        .head(conc_top_n)
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    # Exposure tier
+    vals_c   = df_conc[conc_edge_basis].values
+    p67, p33 = float(np.percentile(vals_c, 67)), float(np.percentile(vals_c, 33))
+    def _exp_tier(v):
+        if v >= p67:   return "Large"
+        elif v >= p33: return "Medium"
+        else:          return "Small"
+
+    df_conc["ExposureTier"] = df_conc[conc_edge_basis].apply(_exp_tier)
+    EXP_COLOR = {"Large": "#A01F2D", "Medium": "#B5620A", "Small": "#3A7BD5"}
+
+    # Build edges — proximity
+    max_val_c = float(df_conc[conc_edge_basis].max()) or 1.0
+    thresh_c  = conc_pct_thresh / 100.0
+
+    edges_conc = []
+    for i in range(len(df_conc)):
+        for j in range(i + 1, len(df_conc)):
+            vi = float(df_conc.iloc[i][conc_edge_basis])
+            vj = float(df_conc.iloc[j][conc_edge_basis])
+            proximity = 1.0 - abs(vi - vj) / max_val_c
+            if proximity >= (1.0 - thresh_c):
+                edges_conc.append((i, j, proximity))
+
+    # Layout — group by ExposureTier in circular clusters
+    tier_groups = {"Large": [], "Medium": [], "Small": []}
+    for i, row in df_conc.iterrows():
+        tier_groups[row["ExposureTier"]].append(i)
+
+    tier_centers = {
+        "Large":  (-2.0, 0.5),
+        "Medium": (0.0, -1.5),
+        "Small":  (2.0,  0.5),
+    }
+    conc_pos_x, conc_pos_y = {}, {}
+    for tier_c, idxs_c in tier_groups.items():
+        cx_c, cy_c = tier_centers[tier_c]
+        for k, idx in enumerate(idxs_c):
+            angle = 2 * math.pi * k / max(len(idxs_c), 1)
+            r_c   = 0.6 + (k % 3) * 0.3
+            conc_pos_x[idx] = cx_c + r_c * math.cos(angle)
+            conc_pos_y[idx] = cy_c + r_c * math.sin(angle)
+
+    fig_conc = go.Figure()
+
+    # Edges
+    for (i, j, prox) in edges_conc:
+        fig_conc.add_trace(go.Scatter(
+            x=[conc_pos_x[i], conc_pos_x[j], None],
+            y=[conc_pos_y[i], conc_pos_y[j], None],
+            mode="lines",
+            line=dict(color=f"rgba(150,150,150,{prox*0.5:.2f})", width=prox * 2.5),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+    # Cluster label annotations
+    for tier_c, (cx_c, cy_c) in tier_centers.items():
+        n_in_tier = len(tier_groups[tier_c])
+        exp_total = float(
+            df_conc[df_conc["ExposureTier"] == tier_c][conc_edge_basis].sum()
+        )
+        fig_conc.add_annotation(
+            x=cx_c, y=cy_c + 1.2,
+            text=f"<b>{tier_c} Exposure</b><br>{n_in_tier} customers<br>{exp_total:.1f} MB",
+            showarrow=False,
+            font=dict(size=10, color=EXP_COLOR.get(tier_c, "#555")),
+            bgcolor="rgba(255,255,255,0.75)",
+            bordercolor=EXP_COLOR.get(tier_c, "#aaa"),
+            borderwidth=1,
+            borderpad=4,
+        )
+
+    # Nodes
+    max_debt_c = float(df_conc["CurrentDebtMB"].max()) or 1.0
+    for tier_c in ["Large", "Medium", "Small"]:
+        idxs_t = [i for i in range(len(df_conc))
+                  if df_conc.iloc[i]["ExposureTier"] == tier_c]
+        if not idxs_t:
+            continue
+        fig_conc.add_trace(go.Scatter(
+            x=[conc_pos_x[i] for i in idxs_t],
+            y=[conc_pos_y[i] for i in idxs_t],
+            mode="markers+text",
+            name=f"{tier_c} Exposure",
+            marker=dict(
+                size=[
+                    12 + float(df_conc.iloc[i]["CurrentDebtMB"])
+                    / max_debt_c * 32
+                    for i in idxs_t
+                ],
+                color=EXP_COLOR[tier_c],
+                opacity=0.85,
+                line=dict(color="white", width=1.5),
+            ),
+            text=[_short(df_conc.iloc[i]["CustomerName"]) for i in idxs_t],
+            textposition="top center",
+            textfont=dict(size=8, color="#2d3748"),
+            hovertext=[
+                f"<b>{df_conc.iloc[i]['CustomerName']}</b><br>"
+                f"Exposure Tier : {df_conc.iloc[i]['ExposureTier']}<br>"
+                f"CurrentDebt   : {df_conc.iloc[i]['CurrentDebtMB']:.2f} MB<br>"
+                f"TotalOverdue  : {df_conc.iloc[i]['TotalOverdueMB']:.2f} MB<br>"
+                f"Utilization   : {df_conc.iloc[i]['UtilizationPct']:.1f}%<br>"
+                f"Connections   : {sum(1 for e in edges_conc if i in (e[0],e[1]))}"
+                for i in idxs_t
+            ],
+            hovertemplate="%{hovertext}<extra></extra>",
+        ))
+
+    portfolio_conc_c = float(df_conc[conc_edge_basis].sum())
+    large_share = float(
+        df_conc[df_conc["ExposureTier"] == "Large"][conc_edge_basis].sum()
+    ) / max(portfolio_conc_c, 0.001) * 100
+
+    fig_conc.update_layout(
+        title=dict(
+            text=(
+                f"Exposure Concentration Network | Basis: {conc_edge_basis} | "
+                f"Proximity: {conc_pct_thresh}% | Edges: {len(edges_conc)} | "
+                f"Large cluster = {large_share:.1f}% of portfolio"
+            ),
+            font=dict(size=11), x=0,
+        ),
+        height=580,
+        plot_bgcolor="#f8fafc",
+        paper_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, visible=False),
+        legend=dict(orientation="h", y=1.05, x=0,
+                    bgcolor="rgba(255,255,255,0.85)", bordercolor="#d0dae6", borderwidth=1),
+        hoverlabel=dict(bgcolor="white", bordercolor="#d0dae6",
+                        font=dict(size=11, color="#1B2A3B")),
+        margin=dict(l=20, r=20, t=70, b=20),
+    )
+    st.plotly_chart(fig_conc, use_container_width=True, key="net11c")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11.D : Credit Risk Propagation + Community Detection
+# RiskScore = 0.4*Util + 0.3*DPD_norm + 0.3*OverdueRatio_norm
+# Edge      = |RiskScore_i - RiskScore_j| <= threshold
+# Community = Louvain vs Leiden (เปรียบเทียบ)
+# ─────────────────────────────────────────────────────────────────────────────
+with tab11d:
+    st.subheader("11.D — Credit Risk Propagation + Community Detection")
+    st.caption(
+        "RiskScore = 0.4×Util + 0.3×DPD_norm + 0.3×OverdueRatio_norm | "
+        "Edge = |RiskScore_i − RiskScore_j| ≤ threshold | "
+        "Community = Louvain vs Leiden"
+    )
+
+    cd1, cd2, cd3 = st.columns([1.5, 1.5, 1.5])
+    with cd1:
+        prop_top_n = st.slider(
+            "Top N Customers",
+            min_value=5, max_value=min(40, len(graph_base)),
+            value=min(20, len(graph_base)), step=5,
+            key="prop_top_n",
+        )
+    with cd2:
+        prop_thresh = st.slider(
+            "Edge Threshold (RiskScore diff)",
+            min_value=0.05, max_value=0.50, value=0.20, step=0.05,
+            key="prop_thresh",
+            help="เชื่อมถ้า |score_i - score_j| <= threshold",
+        )
+    with cd3:
+        prop_algo = st.selectbox(
+            "Community Algorithm",
+            ["Louvain", "Leiden", "Both (Compare)"],
+            key="prop_algo",
+        )
+
+    df_prop = (
+        graph_base
+        .sort_values("TotalOverdueMB", ascending=False)
+        .head(prop_top_n)
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    # Normalize features → [0,1]
+    def _norm_series(s):
+        mn, mx = float(s.min()), float(s.max())
+        return (s - mn) / max(mx - mn, 1e-9)
+
+    df_prop["_util_n"] = _norm_series(df_prop["UtilizationPct"])
+    df_prop["_dpd_n"]  = _norm_series(df_prop["AvgDPD"])
+    df_prop["_ovr_n"]  = _norm_series(df_prop["OverdueRatio"])
+
+    df_prop["RiskScore"] = (
+        0.4 * df_prop["_util_n"]
+        + 0.3 * df_prop["_dpd_n"]
+        + 0.3 * df_prop["_ovr_n"]
+    ).clip(0.0, 1.0)
+
+    def _risk_level(score):
+        if score >= 0.70:   return "High Risk"
+        elif score >= 0.40: return "Medium Risk"
+        else:               return "Low Risk"
+
+    df_prop["RiskLevel"] = df_prop["RiskScore"].apply(_risk_level)
+    RISK_LEVEL_COLOR = {
+        "High Risk":   "#A01F2D",
+        "Medium Risk": "#B5620A",
+        "Low Risk":    "#2A9D8F",
+    }
+
+    # Build adjacency for community detection
+    n_prop = len(df_prop)
+    scores = df_prop["RiskScore"].values
+
+    edges_prop = []
+    adj = {i: [] for i in range(n_prop)}
+    for i in range(n_prop):
+        for j in range(i + 1, n_prop):
+            diff = abs(scores[i] - scores[j])
+            if diff <= prop_thresh:
+                w = float(1.0 - diff / prop_thresh)
+                edges_prop.append((i, j, w))
+                adj[i].append(j)
+                adj[j].append(i)
+
+    # ------------------------------------------------------------------
+    # Community Detection — Louvain (manual greedy implementation)
+    # ใช้ networkx ถ้ามี, fallback greedy partition
+    # ------------------------------------------------------------------
+    def _louvain_community(adj_dict, n):
+        """Greedy modularity-based community — lightweight version"""
+        try:
+            import networkx as nx
+            import community as community_louvain
+            G = nx.Graph()
+            G.add_nodes_from(range(n))
+            for i in range(n):
+                for j in adj_dict[i]:
+                    if i < j:
+                        G.add_edge(i, j)
+            partition = community_louvain.best_partition(G)
+            return [partition.get(i, 0) for i in range(n)]
+        except ImportError:
+            pass
+        try:
+            import networkx as nx
+            from networkx.algorithms.community import greedy_modularity_communities
+            G = nx.Graph()
+            G.add_nodes_from(range(n))
+            for i in range(n):
+                for j in adj_dict[i]:
+                    if i < j:
+                        G.add_edge(i, j)
+            comms = list(greedy_modularity_communities(G))
+            labels = [0] * n
+            for cid, comm in enumerate(comms):
+                for node in comm:
+                    labels[node] = cid
+            return labels
+        except Exception:
+            pass
+        # Final fallback — RiskScore quantile
+        q33 = float(np.percentile(scores, 33))
+        q67 = float(np.percentile(scores, 67))
+        return [
+            0 if scores[i] < q33 else (1 if scores[i] < q67 else 2)
+            for i in range(n)
+        ]
+
+    def _leiden_community(adj_dict, n):
+        """Leiden community — ใช้ leidenalg ถ้ามี, fallback bisection"""
+        try:
+            import igraph as ig
+            import leidenalg
+            G = ig.Graph(n=n)
+            edge_list = [
+                (i, j)
+                for i in range(n)
+                for j in adj_dict[i]
+                if i < j
+            ]
+            G.add_edges(edge_list)
+            part = leidenalg.find_partition(G, leidenalg.ModularityVertexPartition)
+            labels = [0] * n
+            for cid, comm in enumerate(part):
+                for node in comm:
+                    labels[node] = cid
+            return labels
+        except ImportError:
+            pass
+        # Fallback — RiskScore split (slightly different from Louvain fallback)
+        med = float(np.median(scores))
+        return [
+            0 if scores[i] < med * 0.7
+            else (1 if scores[i] < med * 1.3 else 2)
+            for i in range(n)
+        ]
+
+    louvain_labels = _louvain_community(adj, n_prop)
+    leiden_labels  = _leiden_community(adj, n_prop)
+
+    df_prop["Community_Louvain"] = louvain_labels
+    df_prop["Community_Leiden"]  = leiden_labels
+
+    # Choose which label to display
+    display_algo = prop_algo if prop_algo != "Both (Compare)" else "Louvain"
+    comm_col     = f"Community_{display_algo}"
+
+    # Color palette for communities
+    COMM_COLORS = [
+        "#1B4F8A","#A01F2D","#2A9D8F","#B5620A",
+        "#5C3D8F","#1A7A4A","#3D5166","#8A9BB0",
+    ]
+
+    def _comm_color(cid):
+        return COMM_COLORS[int(cid) % len(COMM_COLORS)]
+
+    # Layout — RiskScore on X axis, spread Y
+    prop_pos_x = scores.tolist()
+    rng = {}
+    for i in range(n_prop):
+        c = louvain_labels[i]
+        rng.setdefault(c, [])
+        rng[c].append(i)
+    prop_pos_y = [0.0] * n_prop
+    for c, idxs_c in rng.items():
+        for k, idx in enumerate(idxs_c):
+            prop_pos_y[idx] = (k - len(idxs_c) / 2) * 0.25
+
+    # Figure
+    def _draw_prop_network(comm_labels, title_suffix, key_suffix):
+        fig_p = go.Figure()
+
+        # Edges
+        for (i, j, w) in edges_prop:
+            fig_p.add_trace(go.Scatter(
+                x=[prop_pos_x[i], prop_pos_x[j], None],
+                y=[prop_pos_y[i], prop_pos_y[j], None],
+                mode="lines",
+                line=dict(color=f"rgba(150,150,150,{w*0.4:.2f})", width=w * 2),
+                hoverinfo="skip",
+                showlegend=False,
+            ))
+
+        # Nodes — colored by community
+        unique_comms = sorted(set(comm_labels))
+        for cid in unique_comms:
+            idxs_c = [i for i in range(n_prop) if comm_labels[i] == cid]
+            col    = _comm_color(cid)
+            fig_p.add_trace(go.Scatter(
+                x=[prop_pos_x[i] for i in idxs_c],
+                y=[prop_pos_y[i] for i in idxs_c],
+                mode="markers+text",
+                name=f"Community {cid}",
+                marker=dict(
+                    size=[
+                        10 + float(df_prop.iloc[i]["CurrentDebtMB"])
+                        / max(float(df_prop["CurrentDebtMB"].max()), 0.001) * 28
+                        for i in idxs_c
+                    ],
+                    color=col,
+                    opacity=0.88,
+                    line=dict(color="white", width=1.5),
+                    # Border thickness = RiskScore
+                    # (visualize risk intensity)
+                ),
+                text=[_short(df_prop.iloc[i]["CustomerName"]) for i in idxs_c],
+                textposition="top center",
+                textfont=dict(size=8, color="#2d3748"),
+                hovertext=[
+                    f"<b>{df_prop.iloc[i]['CustomerName']}</b><br>"
+                    f"RiskScore    : {df_prop.iloc[i]['RiskScore']:.3f}<br>"
+                    f"RiskLevel    : {df_prop.iloc[i]['RiskLevel']}<br>"
+                    f"Community    : {comm_labels[i]}<br>"
+                    f"Utilization  : {df_prop.iloc[i]['UtilizationPct']:.1f}%<br>"
+                    f"Avg DPD      : {df_prop.iloc[i]['AvgDPD']:.0f} days<br>"
+                    f"OverdueRatio : {df_prop.iloc[i]['OverdueRatio']:.1f}%<br>"
+                    f"CurrentDebt  : {df_prop.iloc[i]['CurrentDebtMB']:.2f} MB"
+                    for i in idxs_c
+                ],
+                hovertemplate="%{hovertext}<extra></extra>",
+            ))
+
+        # RiskScore zones
+        fig_p.add_vrect(x0=0.0, x1=0.40, fillcolor="#2A9D8F",
+                        opacity=0.04, line_width=0)
+        fig_p.add_vrect(x0=0.40, x1=0.70, fillcolor="#E8A838",
+                        opacity=0.04, line_width=0)
+        fig_p.add_vrect(x0=0.70, x1=1.00, fillcolor="#A01F2D",
+                        opacity=0.04, line_width=0)
+        for x_ref, lbl, clr in [
+            (0.20, "Low Risk",    "#2A9D8F"),
+            (0.55, "Medium Risk", "#B5620A"),
+            (0.85, "High Risk",   "#A01F2D"),
+        ]:
+            fig_p.add_annotation(
+                x=x_ref, y=float(max(prop_pos_y)) + 0.35,
+                text=f"<b>{lbl}</b>",
+                showarrow=False,
+                font=dict(size=10, color=clr),
+                bgcolor="rgba(255,255,255,0.7)",
+            )
+
+        fig_p.update_layout(
+            title=dict(
+                text=(
+                    f"Credit Risk Propagation — {title_suffix} | "
+                    f"Edges: {len(edges_prop)} | "
+                    f"Communities: {len(unique_comms)}"
+                ),
+                font=dict(size=11), x=0,
+            ),
+            height=520,
+            plot_bgcolor="#f8fafc",
+            paper_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(
+                title="Risk Score (0=Low, 1=High)",
+                showgrid=True, gridcolor="rgba(200,210,220,0.4)",
+                zeroline=False, range=[-0.05, 1.05],
+                tickformat=".2f",
+            ),
+            yaxis=dict(showgrid=False, zeroline=False,
+                       showticklabels=False, visible=False),
+            legend=dict(orientation="h", y=1.05, x=0,
+                        bgcolor="rgba(255,255,255,0.85)",
+                        bordercolor="#d0dae6", borderwidth=1,
+                        font=dict(size=9)),
+            hoverlabel=dict(bgcolor="white", bordercolor="#d0dae6",
+                            font=dict(size=11, color="#1B2A3B")),
+            margin=dict(l=20, r=20, t=70, b=40),
+        )
+        return fig_p
+
+    if prop_algo == "Both (Compare)":
+        col_lo, col_le = st.columns(2, gap="medium")
+        with col_lo:
+            st.markdown("**Louvain Community**")
+            st.plotly_chart(
+                _draw_prop_network(louvain_labels, "Louvain", "lo"),
+                use_container_width=True, key="net11d_louvain",
+            )
+        with col_le:
+            st.markdown("**Leiden Community**")
+            st.plotly_chart(
+                _draw_prop_network(leiden_labels, "Leiden", "le"),
+                use_container_width=True, key="net11d_leiden",
+            )
+        # Agreement rate
+        agree = sum(
+            1 for i in range(n_prop)
+            if louvain_labels[i] == leiden_labels[i]
+        )
+        st.info(
+            f"Community Agreement: {agree}/{n_prop} nodes "
+            f"({agree/max(n_prop,1)*100:.1f}%) assigned to same community ID "
+            f"by both algorithms"
+        )
+    else:
+        st.plotly_chart(
+            _draw_prop_network(
+                louvain_labels if prop_algo == "Louvain" else leiden_labels,
+                prop_algo, prop_algo.lower()
+            ),
+            use_container_width=True, key="net11d_single",
+        )
+
+    # RiskScore distribution table
+    with st.expander("RiskScore Detail Table", expanded=False):
+        tbl_prop = df_prop[[
+            "CustomerName", "RiskScore", "RiskLevel",
+            "Community_Louvain", "Community_Leiden",
+            "UtilizationPct", "AvgDPD", "OverdueRatio", "CurrentDebtMB",
+        ]].sort_values("RiskScore", ascending=False).copy()
+        for _c in ["RiskScore", "UtilizationPct", "AvgDPD", "OverdueRatio", "CurrentDebtMB"]:
+            tbl_prop[_c] = tbl_prop[_c].round(3)
+        st.dataframe(tbl_prop, hide_index=True, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11.E : Bipartite Network — ECharts Graph Series
+# Node type 1 : Customer  (circle)
+# Node type 2 : Risk Level (Low / Medium / High / Critical)
+# Edge weight : CurrentDebtMB หรือ TotalOverdueMB
+# Layout      : Force-directed (ECharts built-in)
+# ─────────────────────────────────────────────────────────────────────────────
+with tab11e:
+    st.subheader("11.E — Bipartite Network (ECharts) — Executive View")
+    st.caption(
+        "Node สองประเภท: Customer (circle) และ Risk Level (diamond) | "
+        "Edge weight = CurrentDebtMB หรือ TotalOverdueMB | "
+        "ผู้บริหารมองแว๊บเดียวรู้ว่ากลุ่ม Critical มีใครบ้าง และมูลหนี้รวมเท่าไร"
+    )
+
+    if not ECHARTS_OK:
+        st.error(
+            "ต้องติดตั้ง streamlit-echarts ก่อน:\n\n"
+            "```\npip install streamlit-echarts\n```"
+        )
+        st.stop()
+
+    ce1, ce2, ce3 = st.columns([1.5, 1.5, 1.5])
+    with ce1:
+        bip_top_n = st.slider(
+            "Top N Customers",
+            min_value=5, max_value=min(50, len(graph_base)),
+            value=min(25, len(graph_base)), step=5,
+            key="bip_top_n",
+        )
+    with ce2:
+        bip_edge_col = st.selectbox(
+            "Edge Weight",
+            ["CurrentDebtMB", "TotalOverdueMB"],
+            key="bip_edge_col",
+        )
+    with ce3:
+        bip_layout = st.selectbox(
+            "Graph Layout",
+            ["force", "circular"],
+            key="bip_layout",
+            help="force = force-directed (แนะนำ) | circular = วงกลม",
+        )
+
+    df_bip = (
+        graph_base
+        .sort_values("TotalOverdueMB", ascending=False)
+        .head(bip_top_n)
+        .reset_index(drop=True)
+        .copy()
+    )
+
+    # Risk Level assignment (4 levels)
+    def _risk_level_4(util, dpd, overdue_ratio):
+        u = float(util)
+        d = float(dpd)
+        o = float(overdue_ratio)
+        score = 0.4 * min(u / 100, 1.0) + 0.3 * min(d / 180, 1.0) + 0.3 * min(o / 100, 1.0)
+        if score >= 0.70:   return "Critical"
+        elif score >= 0.45: return "High"
+        elif score >= 0.20: return "Medium"
+        else:               return "Low"
+
+    df_bip["RiskLevel4"] = df_bip.apply(
+        lambda r: _risk_level_4(
+            r["UtilizationPct"], r["AvgDPD"], r["OverdueRatio"]
+        ), axis=1
+    )
+
+    RISK4_COLOR = {
+        "Critical": "#A01F2D",
+        "High":     "#B5620A",
+        "Medium":   "#E8A838",
+        "Low":      "#2A9D8F",
+    }
+    RISK4_ORDER = ["Critical", "High", "Medium", "Low"]
+
+    # ------------------------------------------------------------------
+    # Build ECharts nodes & edges
+    # ------------------------------------------------------------------
+    ec_nodes = []
+    ec_edges = []
+
+    max_edge_val = float(df_bip[bip_edge_col].max()) or 1.0
+
+    # Risk Level hub nodes
+    for lvl in RISK4_ORDER:
+        lvl_df    = df_bip[df_bip["RiskLevel4"] == lvl]
+        lvl_total = float(lvl_df[bip_edge_col].sum())
+        lvl_count = int(len(lvl_df))
+        if lvl_count == 0:
+            continue
+
+        ec_nodes.append({
+            "id":         f"risk_{lvl}",
+            "name":       lvl,
+            "symbolSize": 48 + lvl_count * 4,
+            "symbol":     "diamond",
+            "itemStyle":  {"color": RISK4_COLOR[lvl], "borderColor": "#fff", "borderWidth": 3},
+            "label": {
+                "show":       True,
+                "fontSize":   13,
+                "fontWeight": "bold",
+                "color":      "#ffffff",
+                "formatter":  (
+                    f"{lvl}\n"
+                    f"{lvl_count} customers\n"
+                    f"{lvl_total:.1f} MB"
+                ),
+            },
+            "tooltip": {
+                "formatter": (
+                    f"<b>Risk Level: {lvl}</b><br>"
+                    f"Customers: {lvl_count}<br>"
+                    f"Total {bip_edge_col}: {lvl_total:.2f} MB"
+                )
+            },
+            "_type":      "hub",
+            "_level":     lvl,
+        })
+
+    # Customer nodes
+    for _, row in df_bip.iterrows():
+        cid       = int(row["Customer"])
+        cname     = str(row["CustomerName"])
+        lvl       = row["RiskLevel4"]
+        edge_val  = float(row.get(bip_edge_col, 0))
+        node_size = 12 + edge_val / max_edge_val * 32
+
+        ec_nodes.append({
+            "id":         f"cust_{cid}",
+            "name":       _short(cname, 18),
+            "symbolSize": float(node_size),
+            "symbol":     "circle",
+            "itemStyle":  {
+                "color":       RISK4_COLOR.get(lvl, "#8A9BB0"),
+                "opacity":     0.88,
+                "borderColor": "#ffffff",
+                "borderWidth": 1.5,
+            },
+            "label": {
+                "show":     True,
+                "fontSize": 9,
+                "color":    "#2d3748",
+            },
+            "tooltip": {
+                "formatter": (
+                    f"<b>{cname}</b><br>"
+                    f"Risk Level    : {lvl}<br>"
+                    f"Utilization   : {row['UtilizationPct']:.1f}%<br>"
+                    f"CurrentDebt   : {row['CurrentDebtMB']:.2f} MB<br>"
+                    f"TotalOverdue  : {row['TotalOverdueMB']:.2f} MB<br>"
+                    f"Avg DPD       : {row['AvgDPD']:.0f} days<br>"
+                    f"OverdueRatio  : {row['OverdueRatio']:.1f}%"
+                )
+            },
+            "_type":  "customer",
+            "_level": lvl,
+        })
+
+        # Edge: Customer → Risk Level hub
+        ec_edges.append({
+            "source":    f"cust_{cid}",
+            "target":    f"risk_{lvl}",
+            "value":     float(edge_val),
+            "lineStyle": {
+                "width":   max(0.5, edge_val / max_edge_val * 5),
+                "color":   RISK4_COLOR.get(lvl, "#aaaaaa"),
+                "opacity": max(0.15, min(edge_val / max_edge_val * 0.80, 0.75)),
+                "curveness": 0.2,
+            },
+            "tooltip": {
+                "formatter": (
+                    f"<b>{_short(cname)}</b> → <b>{lvl}</b><br>"
+                    f"{bip_edge_col}: {edge_val:.2f} MB"
+                )
+            },
+        })
+
+    # ------------------------------------------------------------------
+    # ECharts option
+    # ------------------------------------------------------------------
+    force_opt = {
+        "repulsion":     [800, 1200],
+        "gravity":       0.08,
+        "edgeLength":    [80, 200],
+        "friction":      0.6,
+        "layoutAnimation": True,
+    } if bip_layout == "force" else {}
+
+    ec_option = {
+        "backgroundColor": "transparent",
+        "tooltip": {
+            "show":      True,
+            "trigger":   "item",
+            "formatter": "{b}",
+        },
+        "legend": [{
+            "data": [
+                {"name": lvl, "itemStyle": {"color": RISK4_COLOR[lvl]}}
+                for lvl in RISK4_ORDER
+                if any(n["_level"] == lvl for n in ec_nodes if n["_type"] == "hub")
+            ],
+            "top":        "bottom",
+            "orient":     "horizontal",
+            "textStyle":  {"fontSize": 11, "color": "#1B2A3B"},
+            "itemWidth":  18,
+            "itemHeight": 12,
+        }],
+        "animationDuration":    1200,
+        "animationEasingUpdate":"quinticInOut",
+        "series": [{
+            "type":              "graph",
+            "layout":            bip_layout,
+            "force":             force_opt,
+            "data":              ec_nodes,
+            "edges":             ec_edges,
+            "roam":              True,
+            "draggable":         True,
+            "focusNodeAdjacency":True,
+            "symbolSize":        20,
+            "label": {
+                "show":     True,
+                "position": "right",
+                "fontSize": 9,
+                "color":    "#2d3748",
+            },
+            "edgeSymbol":      ["none", "arrow"],
+            "edgeSymbolSize":  [0, 8],
+            "lineStyle": {
+                "opacity": 0.5,
+                "width":   1.5,
+                "curveness": 0.2,
+            },
+            "emphasis": {
+                "focus":    "adjacency",
+                "label":    {"fontSize": 11, "fontWeight": "bold"},
+                "lineStyle":{"width": 4},
+            },
+            "categories": [
+                {"name": lvl, "itemStyle": {"color": RISK4_COLOR[lvl]}}
+                for lvl in RISK4_ORDER
+            ],
+        }],
+    }
+
+    st_echarts(options=ec_option, height="620px", key="net11e_echarts")
+
+    # ------------------------------------------------------------------
+    # KPI Summary strip
+    # ------------------------------------------------------------------
+    st.markdown("**Risk Level Summary**")
+    kpi_cols = st.columns(4)
+    for col_ui, lvl in zip(kpi_cols, RISK4_ORDER):
+        lvl_df    = df_bip[df_bip["RiskLevel4"] == lvl]
+        lvl_count = int(len(lvl_df))
+        lvl_total = float(lvl_df[bip_edge_col].sum())
+        lvl_share = lvl_total / max(float(df_bip[bip_edge_col].sum()), 0.001) * 100
+        col_ui.metric(
+            label=f"{lvl} Risk",
+            value=f"{lvl_count} customers",
+            delta=f"{lvl_total:.1f} MB ({lvl_share:.1f}%)",
+            delta_color="inverse" if lvl in ["Critical", "High"] else "off",
+        )
+
+    # ------------------------------------------------------------------
+    # Customer detail table per Risk Level
+    # ------------------------------------------------------------------
+    with st.expander("Customer Detail by Risk Level", expanded=False):
+        for lvl in RISK4_ORDER:
+            lvl_df = df_bip[df_bip["RiskLevel4"] == lvl].copy()
+            if lvl_df.empty:
+                continue
+            st.markdown(
+                f"<span style='color:{RISK4_COLOR[lvl]};font-weight:700;'>"
+                f"{lvl} — {len(lvl_df)} customers</span>",
+                unsafe_allow_html=True,
+            )
+            show_cols = [c for c in [
+                "CustomerName", "UtilizationPct", "CurrentDebtMB",
+                "TotalOverdueMB", "AvgDPD", "OverdueRatio", "TYPE",
+            ] if c in lvl_df.columns]
+            tbl_lvl = lvl_df[show_cols].sort_values(
+                bip_edge_col if bip_edge_col in show_cols else show_cols[0],
+                ascending=False,
+            ).copy()
+            for _c in ["UtilizationPct", "CurrentDebtMB", "TotalOverdueMB",
+                       "AvgDPD", "OverdueRatio"]:
+                if _c in tbl_lvl.columns:
+                    tbl_lvl[_c] = tbl_lvl[_c].round(2)
+            st.dataframe(tbl_lvl, hide_index=True, use_container_width=True, height=180)
+
+
+
+
+# =============================================================================
 # Download Log
 # =============================================================================
 log.info("SESSION COMPLETE")
