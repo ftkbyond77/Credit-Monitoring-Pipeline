@@ -184,16 +184,12 @@ def _prepare_overdue(df: pd.DataFrame) -> pd.DataFrame:
 
     # ---------------------------------------------------------------
     # Join key : overdue "Customer" column  <->  avail "CUSTOMER_CODE"
-    # _clean_overdue() strips leading ' so raw "'Customer" -> "Customer"
-    # Standardise to int for reliable merge
     # ---------------------------------------------------------------
     if "Customer" in df.columns:
         df["Customer"] = (
             pd.to_numeric(df["Customer"], errors="coerce").fillna(0).astype(int)
         )
-    # Defensive alias — ถ้าไฟล์บางเวอร์ชันใช้ชื่ออื่น ให้ตรวจแล้ว map มาเป็น Customer
     else:
-        # ค้นหา column ที่น่าจะเป็น customer code จาก heuristic
         candidate_cols = [
             c for c in df.columns
             if "customer" in c.lower() and "name" not in c.lower()
@@ -207,8 +203,13 @@ def _prepare_overdue(df: pd.DataFrame) -> pd.DataFrame:
     # --- Derived columns ---
     today = pd.Timestamp("today").normalize()
 
-    df["IsOverdue"]  = df["OverdueAmount"] <= 0
-    df["OverdueAbs"] = df["OverdueAmount"].abs()
+    df["IsOverdue"]    = df["OverdueAmount"] > 0    # Debit Note เท่านั้น
+    df["IsCreditNote"] = df["OverdueAmount"] < 0    # Credit Note (ยกหนี้ / offset)
+    df["IsZeroDebt"]   = df["OverdueAmount"] == 0   # ไม่มีหนี้
+
+    # OverdueAbs ใช้เฉพาะกับ row ที่ IsOverdue จริง — Credit Note ไม่ควรนำ abs มาใช้
+    # เก็บ abs ไว้เพื่อ visualization แต่ downstream ต้อง filter df[df["IsOverdue"]] ก่อน
+    df["OverdueAbs"] = df["OverdueAmount"].where(df["IsOverdue"], 0.0)
 
     if "OriginalDueDate" in df.columns:
         df["DPD"] = (today - df["OriginalDueDate"]).dt.days.clip(lower=0)
@@ -225,6 +226,7 @@ def _prepare_overdue(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     return df
+
 
 # =============================================================================
 # Period helpers
@@ -471,71 +473,6 @@ def _overdue_kpi_card(label: str, value: str, sub: str, variant: str) -> str:
         f"</div>"
     )
 
-
-def _render_kpi_row(df: pd.DataFrame):
-    overdue_df = df[df["IsOverdue"]]
-
-    total_customers = (
-        int(overdue_df["CustomerName"].nunique())
-        if "CustomerName" in overdue_df.columns else 0
-    )
-    total_amount = (
-        float(overdue_df["OverdueAbs"].sum())
-        if "OverdueAbs" in overdue_df.columns else 0.0
-    )
-    total_invoices = int(len(overdue_df))
-    avg_dpd = (
-        float(overdue_df["DPD"].mean())
-        if "DPD" in overdue_df.columns and not overdue_df.empty else 0.0
-    )
-
-    # Largest customer — แสดงชื่อเต็ม ไม่ตัด ให้ font scaling จัดการ
-    largest_customer = "N/A"
-    if "CustomerName" in overdue_df.columns and not overdue_df.empty:
-        agg = overdue_df.groupby("CustomerName")["OverdueAbs"].sum()
-        if not agg.empty:
-            largest_customer = str(agg.idxmax())
-
-    cards = [
-        (
-            "Overdue Customers",
-            f"{total_customers:,}",
-            "Unique customers with overdue",
-            "danger" if total_customers > 0 else "safe",
-        ),
-        (
-            "Total Overdue Amount",
-            f"{total_amount:,.2f}",
-            "THB — selected period",
-            "danger" if total_amount > 0 else "safe",
-        ),
-        (
-            "Overdue Invoices",
-            f"{total_invoices:,}",
-            "Records in selected period",
-            "warning" if total_invoices > 0 else "safe",
-        ),
-        (
-            "Avg DPD",
-            f"{avg_dpd:.1f} days",
-            "Avg Days Past Due",
-            "warning" if avg_dpd > 30 else "info",
-        ),
-        (
-            "Largest Overdue Customer",
-            largest_customer,           # ชื่อเต็ม — font จะหด
-            "By total overdue amount",
-            "danger" if largest_customer != "N/A" else "info",
-        ),
-    ]
-
-    cols = st.columns(5, gap="small")
-    for col, (label, value, sub, variant) in zip(cols, cards):
-        with col:
-            st.markdown(
-                _overdue_kpi_card(label, value, sub, variant),
-                unsafe_allow_html=True,
-            )
 
 # =============================================================================
 # KPI Row — 5 cards
@@ -1035,9 +972,10 @@ def _render_risk_matrix(df: pd.DataFrame, df_avail: pd.DataFrame = None):
 # =============================================================================
 def _render_exposure_utilization(df_overdue_filtered: pd.DataFrame, df_avail: pd.DataFrame):
     """
-    Aging Distribution — Plotly Bar (ไม่มีเส้นประ)
+    Aging Distribution — Plotly Bar
     X = DPD Bucket
     Y = SUM(Current Debt) MB
+    กรองเฉพาะ IsOverdue=True (Debit Note) ก่อน aggregate
     """
     if "Customer" not in df_overdue_filtered.columns:
         st.error(f"Join key 'Customer' not found. Columns: {list(df_overdue_filtered.columns)}")
@@ -1045,8 +983,13 @@ def _render_exposure_utilization(df_overdue_filtered: pd.DataFrame, df_avail: pd
 
     overdue_df = df_overdue_filtered[df_overdue_filtered["IsOverdue"]].copy()
     if overdue_df.empty:
-        st.info("No overdue records for aging distribution.")
+        st.info("No overdue records (Debit Note) for aging distribution.")
         return
+
+    # ตรวจ sanity: OverdueAbs ต้องเป็นบวกทั้งหมดหลัง filter
+    if (overdue_df["OverdueAbs"] < 0).any():
+        st.warning("⚠️ พบ OverdueAbs ติดลบหลัง filter IsOverdue — กรุณาตรวจ _prepare_overdue()")
+        overdue_df["OverdueAbs"] = overdue_df["OverdueAbs"].abs()
 
     agg = (
         overdue_df.groupby(["Customer", "CustomerName", "DueYear"])
@@ -1060,7 +1003,7 @@ def _render_exposure_utilization(df_overdue_filtered: pd.DataFrame, df_avail: pd
         agg["CURRENT_DEBT_MILLION_THB"] = 0.0
     agg["CURRENT_DEBT_MILLION_THB"] = agg["CURRENT_DEBT_MILLION_THB"].fillna(0.0)
 
-    # ถ้าไม่มี avail ใช้ TotalOverdue แทน
+    # ถ้าไม่มี avail ใช้ TotalOverdue (Debit Note จริง) แทน
     if agg["CURRENT_DEBT_MILLION_THB"].sum() == 0:
         agg["CURRENT_DEBT_MILLION_THB"] = agg["TotalOverdue"] / 1_000_000
 
@@ -1108,7 +1051,7 @@ def _render_exposure_utilization(df_overdue_filtered: pd.DataFrame, df_avail: pd
         marker_color=bar_colors,
         marker=dict(
             color=bar_colors,
-            line=dict(width=0),         # ไม่มี border
+            line=dict(width=0),
         ),
         text=[
             f"{v:.1f}M" if v >= 1 else f"{v*1000:.0f}K"
@@ -1119,16 +1062,15 @@ def _render_exposure_utilization(df_overdue_filtered: pd.DataFrame, df_avail: pd
         textfont=dict(size=9, color=FONT_COLOR),
         customdata=hist["CustomerCount"].values,
         hovertemplate=(
-            "<b>%{x}</b><br>"
-            "Current Debt  : %{y:.2f} MB<br>"
-            "Customers     : %{customdata}<br>"
-            "<extra></extra>"
+            "%{x}"
+            "Current Debt  : %{y:.2f} MB"
+            "Customers     : %{customdata}"
+            ""
         ),
         name="Current Debt (MB)",
     ))
-    # ไม่มี secondary axis / เส้นประ
 
-    y_max = float(hist["SumDebt"].max()) * 1.20
+    y_max = float(hist["SumDebt"].max()) * 1.20 if hist["SumDebt"].max() > 0 else 1.0
 
     apply_base_layout(fig, {
         "height": 360,
