@@ -3,21 +3,16 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from styles import DASHBOARD_CSS, SIDEBAR_TOGGLE_HTML
-from views.view_loading   import render as render_loading
-from views.view_transform import render as render_transform
-from views.view_avail     import render as render_avail
-from views.view_overdue import render as render_overdue  
-from views.view_monitoring import render as render_monitoring
+from views.view_loading       import render as render_loading
+from views.view_transform     import render as render_transform
+from views.view_avail         import render as render_avail
+from views.view_overdue       import render as render_overdue
+from views.view_monitoring    import render as render_monitoring
+from views.view_overdue_daily import render as render_overdue_daily
 
 st.set_page_config(page_title="Credit Automate Dashboard", layout="wide")
 
-# Inject global CSS (runs inside Streamlit main iframe)
 st.markdown(DASHBOARD_CSS, unsafe_allow_html=True)
-
-# Inject sidebar toggle button + JS
-# height=0 makes the component invisible in the page flow.
-# The button itself is position:fixed inside the parent window so it
-# always appears at top-left regardless of scroll or page content.
 components.html(SIDEBAR_TOGGLE_HTML, height=0, scrolling=False)
 
 # =============================================================================
@@ -49,19 +44,20 @@ active    = st.session_state.active_page
 
 with st.sidebar:
     st.markdown(
-        '<div style="font-size:14px;font-weight:700;color:#1a2540;padding:4px 0 1px 0;">'
-        'Credit Monitor</div>'
-        '<div style="font-size:9px;color:#4a6fa5;margin-bottom:4px;">'
-        'SCG — ET Pipeline System</div>',
+        '<p class="sidebar-brand">Credit Monitor</p>'
+        '<p class="sidebar-sub">SCG - ET Pipeline System</p>',
         unsafe_allow_html=True,
     )
-    st.markdown('<hr class="nav-divider">', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
 
-    # --- Data Pipeline ---
+    # -------------------------------------------------------------------------
+    # Data Pipeline — แสดงเสมอ ไม่ต้อง process ก่อน
+    # -------------------------------------------------------------------------
     st.markdown(
-        '<span class="nav-section-label">Data Pipeline</span>',
+        '<p class="sidebar-section-label">Data Pipeline</p>',
         unsafe_allow_html=True,
     )
+
     if st.button(
         "Loading and Processing Data",
         key="nav_loading",
@@ -80,20 +76,18 @@ with st.sidebar:
         _set_page('transform')
         st.rerun()
 
-    st.markdown('<hr class="nav-divider">', unsafe_allow_html=True)
+    # -------------------------------------------------------------------------
+    # Analytics Dashboard + Jelly Section
+    # ซ่อนทั้งหมด (ทั้ง label และ content) จนกว่าจะ process เสร็จ
+    # -------------------------------------------------------------------------
+    if processed:
+        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
 
-    # --- Analytics Dashboard ---
-    st.markdown(
-        '<span class="nav-section-label">Analytics Dashboard</span>',
-        unsafe_allow_html=True,
-    )
-    if not processed:
         st.markdown(
-            '<div style="font-size:9px;color:#b0bec5;padding:3px 6px;">'
-            'Process data first to unlock dashboards.</div>',
+            '<p class="sidebar-section-label">Analytics Dashboard</p>',
             unsafe_allow_html=True,
         )
-    else:
+
         if st.button(
             "Credit Availability",
             key="nav_avail",
@@ -121,6 +115,22 @@ with st.sidebar:
             _set_page('monitoring')
             st.rerun()
 
+        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+
+        st.markdown(
+            '<p class="sidebar-section-label">Jelly Section</p>',
+            unsafe_allow_html=True,
+        )
+
+        if st.button(
+            "Overdue Daily",
+            key="nav_overdue_daily",
+            use_container_width=True,
+            type="primary" if active == 'overdue_daily' else "secondary",
+        ):
+            _set_page('overdue_daily')
+            st.rerun()
+
 
 # =============================================================================
 # Page Router
@@ -135,7 +145,10 @@ elif active == 'avail':
     render_avail()
 
 elif active == 'overdue_dash':
-    render_overdue()                                    
+    render_overdue()
 
 elif active == 'monitoring':
     render_monitoring()
+
+elif active == 'overdue_daily':
+    render_overdue_daily()
