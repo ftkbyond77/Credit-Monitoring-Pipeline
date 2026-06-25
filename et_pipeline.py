@@ -245,14 +245,17 @@ def run_pipeline(avail_file, sheets_to_process, overdue_files):
         ]
 
         existing_cols = [col for col in MASTER_ORDER if col in df_avail_combined.columns]
-        extra_cols = [col for col in df_avail_combined.columns if col not in existing_cols]
+        extra_cols    = [col for col in df_avail_combined.columns if col not in existing_cols]
         df_avail_combined = df_avail_combined[existing_cols + extra_cols]
     else:
         df_avail_combined = pd.DataFrame()
 
+    if not overdue_files:
+        return df_avail_combined, pd.DataFrame(), "", all_debug_info
+
     overdue_files.sort(key=lambda x: x.name, reverse=True)
     latest_overdue_file = overdue_files[0]
-    df_overdue_raw = pd.read_excel(latest_overdue_file)
+    df_overdue_raw   = pd.read_excel(latest_overdue_file)
     df_overdue_clean = _clean_overdue(df_overdue_raw)
 
     return df_avail_combined, df_overdue_clean, latest_overdue_file.name, all_debug_info
