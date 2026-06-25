@@ -1,20 +1,19 @@
 # app.py
 
+import base64
+import os
 import streamlit as st
-import streamlit.components.v1 as components
-from styles import DASHBOARD_CSS, SIDEBAR_TOGGLE_HTML
-from views.view_loading       import render as render_loading
-from views.view_transform     import render as render_transform
-from views.view_avail         import render as render_avail
-from views.view_overdue       import render as render_overdue
-from views.view_monitoring    import render as render_monitoring
-from views.view_overdue_daily import render as render_overdue_daily
-from views.view_credit_summary import render as render_credit_summary   
+from styles import DASHBOARD_CSS
+from views.view_loading        import render as render_loading
+from views.view_transform      import render as render_transform
+from views.view_avail          import render as render_avail
+from views.view_overdue        import render as render_overdue
+from views.view_monitoring     import render as render_monitoring
+from views.view_overdue_daily  import render as render_overdue_daily
+from views.view_credit_summary import render as render_credit_summary
 
 st.set_page_config(page_title="Credit Automate Dashboard", layout="wide")
-
 st.markdown(DASHBOARD_CSS, unsafe_allow_html=True)
-components.html(SIDEBAR_TOGGLE_HTML, height=0, scrolling=False)
 
 # =============================================================================
 # Session State defaults
@@ -38,26 +37,60 @@ def _set_page(key: str):
 
 
 # =============================================================================
+# Logo helper
+# =============================================================================
+def _render_logo():
+    logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo", "logo.png")
+    if not os.path.exists(logo_path):
+        return
+    with open(logo_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    st.markdown(
+        f"""
+        <div style="
+            width: 100%;
+            padding: 8px 14px 10px 14px;
+            border-bottom: 1px solid #c8cfc0;
+            margin-bottom: 0;
+            background: transparent;
+        ">
+            <img src="data:image/png;base64,{b64}"
+                 style="width:100%; height:auto; max-height:72px;
+                        object-fit:contain; object-position:left center;
+                        display:block;
+                        mix-blend-mode: multiply;">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# =============================================================================
+# Sidebar section label helper
+# =============================================================================
+def _nav_section(label: str):
+    """Render a ——— LABEL ——— divider in the sidebar."""
+    st.markdown(
+        f'<p class="sidebar-section-label">{label}</p>',
+        unsafe_allow_html=True,
+    )
+
+
+# =============================================================================
 # Sidebar Navigation
 # =============================================================================
 processed = st.session_state.data_processed
 active    = st.session_state.active_page
 
 with st.sidebar:
-    st.markdown(
-        'Credit Monitor'
-        'SCG - ET Pipeline System',
-        unsafe_allow_html=True,
-    )
-    st.markdown('', unsafe_allow_html=True)
+
+    # Logo (ถ้ามีไฟล์)
+    _render_logo()
 
     # -------------------------------------------------------------------------
-    # Data Pipeline — แสดงเสมอ ไม่ต้อง process ก่อน
+    # Data Pipeline — แสดงเสมอ
     # -------------------------------------------------------------------------
-    st.markdown(
-        'Data Pipeline',
-        unsafe_allow_html=True,
-    )
+    _nav_section("Data Pipeline")
 
     if st.button(
         "Loading and Processing Data",
@@ -78,16 +111,11 @@ with st.sidebar:
         st.rerun()
 
     # -------------------------------------------------------------------------
-    # Analytics Dashboard + Jelly Section + PNONG Section
-    # ซ่อนทั้งหมด (ทั้ง label และ content) จนกว่าจะ process เสร็จ
+    # Analytics + Jelly + PNONG — ซ่อนจนกว่าจะ process เสร็จ
     # -------------------------------------------------------------------------
     if processed:
-        st.markdown('', unsafe_allow_html=True)
 
-        st.markdown(
-            'Analytics Dashboard',
-            unsafe_allow_html=True,
-        )
+        _nav_section("Analytics Dashboard")
 
         if st.button(
             "Credit Availability",
@@ -116,15 +144,7 @@ with st.sidebar:
             _set_page('monitoring')
             st.rerun()
 
-        st.markdown('', unsafe_allow_html=True)
-
-        # ---------------------------------------------------------------------
-        # Jelly Section
-        # ---------------------------------------------------------------------
-        st.markdown(
-            'Jelly Section',
-            unsafe_allow_html=True,
-        )
+        _nav_section("Jelly Section")
 
         if st.button(
             "Overdue Daily",
@@ -135,15 +155,7 @@ with st.sidebar:
             _set_page('overdue_daily')
             st.rerun()
 
-        st.markdown('', unsafe_allow_html=True)
-
-        # ---------------------------------------------------------------------
-        # PNONG Section  (ใหม่ — ต่อจาก Jelly Section)
-        # ---------------------------------------------------------------------
-        st.markdown(
-            'PNONG Section',
-            unsafe_allow_html=True,
-        )
+        _nav_section("PNONG Section")
 
         if st.button(
             "Credit Summary",
@@ -160,21 +172,15 @@ with st.sidebar:
 # =============================================================================
 if active == 'loading':
     render_loading()
-
 elif active == 'transform':
     render_transform()
-
 elif active == 'avail':
     render_avail()
-
 elif active == 'overdue_dash':
     render_overdue()
-
 elif active == 'monitoring':
     render_monitoring()
-
 elif active == 'overdue_daily':
     render_overdue_daily()
-
 elif active == 'credit_summary':
     render_credit_summary()
