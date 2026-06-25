@@ -9,6 +9,7 @@ from views.view_avail         import render as render_avail
 from views.view_overdue       import render as render_overdue
 from views.view_monitoring    import render as render_monitoring
 from views.view_overdue_daily import render as render_overdue_daily
+from views.view_credit_summary import render as render_credit_summary   
 
 st.set_page_config(page_title="Credit Automate Dashboard", layout="wide")
 
@@ -44,17 +45,17 @@ active    = st.session_state.active_page
 
 with st.sidebar:
     st.markdown(
-        '<p class="sidebar-brand">Credit Monitor</p>'
-        '<p class="sidebar-sub">SCG - ET Pipeline System</p>',
+        'Credit Monitor'
+        'SCG - ET Pipeline System',
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+    st.markdown('', unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
     # Data Pipeline — แสดงเสมอ ไม่ต้อง process ก่อน
     # -------------------------------------------------------------------------
     st.markdown(
-        '<p class="sidebar-section-label">Data Pipeline</p>',
+        'Data Pipeline',
         unsafe_allow_html=True,
     )
 
@@ -77,14 +78,14 @@ with st.sidebar:
         st.rerun()
 
     # -------------------------------------------------------------------------
-    # Analytics Dashboard + Jelly Section
+    # Analytics Dashboard + Jelly Section + PNONG Section
     # ซ่อนทั้งหมด (ทั้ง label และ content) จนกว่าจะ process เสร็จ
     # -------------------------------------------------------------------------
     if processed:
-        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+        st.markdown('', unsafe_allow_html=True)
 
         st.markdown(
-            '<p class="sidebar-section-label">Analytics Dashboard</p>',
+            'Analytics Dashboard',
             unsafe_allow_html=True,
         )
 
@@ -115,10 +116,13 @@ with st.sidebar:
             _set_page('monitoring')
             st.rerun()
 
-        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
+        st.markdown('', unsafe_allow_html=True)
 
+        # ---------------------------------------------------------------------
+        # Jelly Section
+        # ---------------------------------------------------------------------
         st.markdown(
-            '<p class="sidebar-section-label">Jelly Section</p>',
+            'Jelly Section',
             unsafe_allow_html=True,
         )
 
@@ -129,6 +133,25 @@ with st.sidebar:
             type="primary" if active == 'overdue_daily' else "secondary",
         ):
             _set_page('overdue_daily')
+            st.rerun()
+
+        st.markdown('', unsafe_allow_html=True)
+
+        # ---------------------------------------------------------------------
+        # PNONG Section  (ใหม่ — ต่อจาก Jelly Section)
+        # ---------------------------------------------------------------------
+        st.markdown(
+            'PNONG Section',
+            unsafe_allow_html=True,
+        )
+
+        if st.button(
+            "Credit Summary",
+            key="nav_credit_summary",
+            use_container_width=True,
+            type="primary" if active == 'credit_summary' else "secondary",
+        ):
+            _set_page('credit_summary')
             st.rerun()
 
 
@@ -152,3 +175,6 @@ elif active == 'monitoring':
 
 elif active == 'overdue_daily':
     render_overdue_daily()
+
+elif active == 'credit_summary':
+    render_credit_summary()

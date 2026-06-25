@@ -1,0 +1,133 @@
+/* WeasyPrint specific @page rules for A4 and pagination */
+@page {
+    size: A4;
+    margin: 15mm 15mm 20mm 15mm;
+    
+    @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 9pt;
+        color: #777;
+    }
+}
+
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #333;
+    line-height: 1.4;
+}
+
+/* Header Sections */
+.invoice-header {
+    width: 100%;
+    border-bottom: 2px solid #2c3e50;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.invoice-title {
+    font-size: 24pt;
+    font-weight: bold;
+    color: #2c3e50;
+    text-transform: uppercase;
+    text-align: right;
+    margin: 0;
+}
+
+/* Flexbox layout is supported in WeasyPrint */
+.details-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.details-box {
+    width: 45%;
+}
+
+.details-box h3 {
+    font-size: 11pt;
+    color: #7f8c8d;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.meta-data {
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+/* Itemized Table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+/* This ensures headers repeat on the second page */
+thead {
+    display: table-header-group;
+}
+
+/* This prevents a single row from splitting across two pages */
+tr {
+    page-break-inside: avoid;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+}
+
+th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 9pt;
+    color: #2c3e50;
+    text-align: left;
+}
+
+td {
+    font-size: 9.5pt;
+}
+
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+/* Totals Section */
+.totals-container {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.totals-table {
+    width: 40%;
+    border: none;
+}
+
+.totals-table th, .totals-table td {
+    border: none;
+    padding: 6px 10px;
+}
+
+.totals-table tr.grand-total {
+    border-top: 2px solid #2c3e50;
+    font-weight: bold;
+    font-size: 12pt;
+}
+
+/* Footer / Notes */
+.notes {
+    margin-top: 40px;
+    font-size: 9pt;
+    color: #555;
+    background-color: #fcfcfc;
+    padding: 15px;
+    border-left: 4px solid #2c3e50;
+    page-break-inside: avoid;
+}

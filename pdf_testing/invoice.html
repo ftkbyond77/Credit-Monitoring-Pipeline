@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Credit Invoice - {{ invoice.number }}</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <table class="invoice-header">
+        <tr>
+            <td style="border: none; padding: 0;">
+                <h1 style="margin: 0; font-size: 20pt; color: #2c3e50;">{{ company.name }}</h1>
+                <p style="margin: 5px 0 0 0; font-size: 9pt; color: #777;">
+                    {{ company.address }}<br>
+                    {{ company.email }} | {{ company.phone }}<br>
+                    Tax ID: {{ company.tax_id }}
+                </p>
+            </td>
+            <td style="border: none; padding: 0; text-align: right; vertical-align: top;">
+                <h2 class="invoice-title">Credit Invoice</h2>
+                <p style="margin-top: 5px; font-weight: bold; color: #e74c3c;">
+                    Ref: {{ invoice.number }}
+                </p>
+            </td>
+        </tr>
+    </table>
+
+    <div class="details-container">
+        <div class="details-box">
+            <h3>Billed To (Credit Receiver)</h3>
+            <strong>{{ client.name }}</strong><br>
+            {{ client.address }}<br>
+            Attn: {{ client.contact }}<br>
+            Email: {{ client.email }}
+        </div>
+        
+        <div class="details-box">
+            <h3>Credit Details</h3>
+            <table style="border: none; margin: 0;">
+                <tr><td style="border: none; padding: 2px 0;"><strong>Date:</strong></td><td style="border: none; padding: 2px 0; text-align: right;">{{ invoice.date }}</td></tr>
+                <tr><td style="border: none; padding: 2px 0;"><strong>Original Invoice Ref:</strong></td><td style="border: none; padding: 2px 0; text-align: right;">{{ invoice.original_invoice }}</td></tr>
+                <tr><td style="border: none; padding: 2px 0;"><strong>Reason:</strong></td><td style="border: none; padding: 2px 0; text-align: right;">{{ invoice.reason }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;" class="text-center">#</th>
+                <th style="width: 45%;">Description</th>
+                <th style="width: 15%;" class="text-right">Qty Returned</th>
+                <th style="width: 15%;" class="text-right">Unit Price</th>
+                <th style="width: 20%;" class="text-right">Total Credit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="text-center">{{ loop.index }}</td>
+                <td>
+                    <strong>{{ item.name }}</strong><br>
+                    <span style="font-size: 8pt; color: #777;">SKU: {{ item.sku }}</span>
+                </td>
+                <td class="text-right">{{ item.quantity }}</td>
+                <td class="text-right">${{ "%.2f"|format(item.unit_price) }}</td>
+                <td class="text-right">${{ "%.2f"|format(item.total) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals-container">
+        <table class="totals-table">
+            <tr>
+                <th class="text-right">Subtotal:</th>
+                <td class="text-right">${{ "%.2f"|format(totals.subtotal) }}</td>
+            </tr>
+            <tr>
+                <th class="text-right">Tax ({{ totals.tax_rate }}%):</th>
+                <td class="text-right">${{ "%.2f"|format(totals.tax_amount) }}</td>
+            </tr>
+            <tr class="grand-total">
+                <th class="text-right">Total Credit:</th>
+                <td class="text-right" style="color: #e74c3c;">${{ "%.2f"|format(totals.grand_total) }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="notes">
+        <strong>Terms & Conditions:</strong><br>
+        This document serves as a formal credit against the original invoice mentioned above. The total credit amount will be applied to your account balance. If the original invoice has already been settled, a refund will be issued to your original payment method within 5-7 business days.
+    </div>
+
+</body>
+</html>
