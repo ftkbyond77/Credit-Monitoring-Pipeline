@@ -11,7 +11,7 @@ DASHBOARD_CSS = """
    Sidebar — background + padding reset
    ============================================================ */
 [data-testid="stSidebar"] {
-    background-color: #f4f5ef !important;
+    background-color: #ececff !important;
     border-right: 1px solid #c8cfc0 !important;
     box-shadow: none !important;
 }
@@ -42,7 +42,7 @@ DASHBOARD_CSS = """
 [data-testid="stSidebarCollapseButton"] button {
     width: 32px !important;
     height: 32px !important;
-    background: #f4f5ef !important;
+    background: #ececff !important;
     border: 1px solid #c8cfc0 !important;
     border-radius: 4px !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.10) !important;
@@ -75,7 +75,7 @@ DASHBOARD_CSS = """
 [data-testid="collapsedControl"] button {
     width: 32px !important;
     height: 32px !important;
-    background: #f4f5ef !important;
+    background: #ececff !important;
     border: 1px solid #c8cfc0 !important;
     border-radius: 4px !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.10) !important;
