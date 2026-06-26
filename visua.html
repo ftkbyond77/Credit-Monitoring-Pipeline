@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credit Management Logic Matrix</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8f9fa;
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            max-width: 1100px;
+            width: 100%;
+        }
+
+        h2 {
+            color: #2d3436;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 22px;
+            border-left: 5px solid #0984e3;
+            padding-left: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        th {
+            background-color: #f1f2f6;
+            color: #2d3436;
+            font-weight: 700;
+            padding: 14px 16px;
+            border-bottom: 3px solid #dfe4ea;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f2f6;
+            font-size: 14px;
+            color: #2d3436;
+            vertical-align: middle;
+        }
+
+        tr:hover {
+            background-color: #fafafa;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* Risk Badges */
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+        
+        .badge-low { background-color: #d4edda; color: #155724; }
+        .badge-medium { background-color: #fff3cd; color: #856404; }
+        .badge-high { background-color: #ffe8d6; color: #d35400; }
+        .badge-critical { background-color: #f8d7da; color: #721c24; }
+
+        /* Highlight Text */
+        .alert-text {
+            color: #e74c3c;
+            font-weight: 700;
+        }
+
+        .safe-text {
+            color: #2ed573;
+        }
+
+        /* Footer Note */
+        .note-box {
+            background-color: #ebf5fb;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        
+        .note-box strong {
+            color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📊 CREDIT MANAGEMENT LOGIC MATRIX</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>สถานการณ์หลัก (Stage)</th>
+                <th class="text-center">เกิน Original?</th>
+                <th class="text-center">เกิน Customer?</th>
+                <th class="text-center">เกิน Collection?</th>
+                <th class="text-center">ระดับความเสี่ยง</th>
+                <th>แอ็กชันที่ต้องทำ (Action Item)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>1. Normal (ปกติ)</strong></td>
+                <td class="text-center safe-text">🟢 ไม่เกิน</td>
+                <td class="text-center safe-text">🟢 ไม่เกิน</td>
+                <td class="text-center safe-text">🟢 ไม่เกิน</td>
+                <td class="text-center"><span class="badge badge-low">LOW</span></td>
+                <td><strong>ปล่อยผ่านตามระบบ</strong> / ส่ง SMS เตือนล่วงหน้าตามรอบปกติ</td>
+            </tr>
+            <tr>
+                <td><strong>2. Grace Period (ผ่อนผัน)</strong></td>
+                <td class="text-center alert-text">⚠️ เกินแล้ว</td>
+                <td class="text-center safe-text">🟢 ไม่เกิน</td>
+                <td class="text-center safe-text">🟢 ไม่เกิน</td>
+                <td class="text-center"><span class="badge badge-medium">MEDIUM</span></td>
+                <td><strong>เฝ้าระวัง (Soft Collection)</strong> / ส่งเตือนสุภาพห้ามหลุดดิวนี้</td>
+            </tr>
+            <tr>
+                <td><strong>3. Late Warning (เตือนเข้ม)</strong></td>
+                <td class="text-center alert-text">⚠️ เกินแล้ว</td>
+                <td class="text-center alert-text">⚠️ เกินแล้ว</td>
+                <td class="text-center safe-text">🟢 ไม่เกิน</td>
+                <td class="text-center"><span class="badge badge-high">HIGH</span></td>
+                <td><strong>จุดเปลี่ยน (Hard Collection)</strong> / โทรจี้รายคน ห้ามปล่อยลอยนวล</td>
+            </tr>
+            <tr>
+                <td><strong>4. Critical (วิกฤต)</strong></td>
+                <td class="text-center alert-text">⚠️ เกินแล้ว</td>
+                <td class="text-center alert-text">⚠️ เกินแล้ว</td>
+                <td class="text-center alert-text">⚠️ เกินแล้ว</td>
+                <td class="text-center"><span class="badge badge-critical">CRITICAL</span></td>
+                <td><strong>มาตรการเด็ดขาด</strong> / ระงับวงเงิน เจรจาปรับโครงสร้างหนี้ หรือส่งฟ้อง</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="note-box">
+        📌 <strong>กฎเหล็กทางตรรกะ (Timeline Rule):</strong> 
+        ลำดับเวลาในระบบจะต้องเรียงจาก Original Due Date &rarr; Customer Due Date &rarr; Collection Date เสมอ ดังนั้นสถานการณ์ที่นอกเหนือจาก 4 ข้อนี้ จะถือเป็น Data Anomaly (ข้อมูลที่ผิดพลาดในระบบ) ทันที
+    </div>
+</div>
+
+</body>
+</html>
