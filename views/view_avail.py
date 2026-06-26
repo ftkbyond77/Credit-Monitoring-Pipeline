@@ -8,6 +8,7 @@
 #   Row 4 — Customer Credit Risk Preview  (full width table)
 #   Row 5 — Customer Trend Analysis       (full width, independent customer filter)
 import streamlit as st
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from components import (
@@ -65,15 +66,22 @@ def render():
         unsafe_allow_html=True,
     )
     df, granularity, selected_years = _render_filters(df_raw)
+
     st.markdown(section_header("Key Metrics"), unsafe_allow_html=True)
     _render_kpi_row(df)
     st.markdown("", unsafe_allow_html=True)
-    st.markdown(section_header("Credit Exposure Analysis"), unsafe_allow_html=True)
-    r2_left, r2_right = st.columns([2.8, 1.2], gap="medium")
+
+    st.markdown(section_header("Customer Credit Utilization Analysis"), unsafe_allow_html=True)
+
+    # shared search — ใช้ key เดียวกับ trend section
+    _render_utilization_search(df)
+
+    r2_left, r2_right = st.columns([3.2, 1.1], gap="medium")
     with r2_left:
-        _render_debt_pct_bar(df)
+        top_n = _render_debt_pct_bar(df)
     with r2_right:
         _render_risk_pie(df)
+
     st.markdown("", unsafe_allow_html=True)
     st.markdown(section_header("Distribution and Trend"), unsafe_allow_html=True)
     r3_left, r3_right = st.columns([1, 1.6], gap="medium")
@@ -82,9 +90,11 @@ def render():
     with r3_right:
         _render_trend(df, granularity)
     st.markdown("", unsafe_allow_html=True)
+
     st.markdown(section_header("Customer Credit Risk Preview"), unsafe_allow_html=True)
-    _render_customer_table(df)
+    _render_customer_table(df, top_n)
     st.markdown("", unsafe_allow_html=True)
+
     st.markdown(section_header("Customer Trend Analysis"), unsafe_allow_html=True)
     _render_trend_analysis(df_raw, granularity, selected_years)
 
@@ -106,11 +116,6 @@ def _prepare(df: pd.DataFrame) -> pd.DataFrame:
 
 # =============================================================================
 # Main Filter bar
-# CHANGED: Year → st.pills (multi-select chips) — scale-friendly, UX-first
-#   - ทุกปีแสดงเป็น pill กดได้, wrap อัตโนมัติเมื่อมีหลายปี
-#   - "All" pill อยู่ซ้ายสุด: กด All → เลือกทุกปี, ยกเลิก All → เหลือที่เลือก
-#   - fallback เป็น st.multiselect สำหรับ Streamlit < 1.42
-# Returns (df_filtered, granularity, selected_years_list)
 # =============================================================================
 def _render_filters(df_raw: pd.DataFrame):
     all_years = sorted(df_raw['YEAR'].dropna().unique().tolist())
@@ -119,93 +124,84 @@ def _render_filters(df_raw: pd.DataFrame):
         if 'TYPE' in df_raw.columns else []
     )
 
-    # ── Year pill / chip selector ──────────────────────────────────────────
-    st.markdown(
-        '<p style="font-size:11px;font-weight:600;color:#1B4F8A;'
-        'text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">'
-        'Year (Sheet)</p>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<p class="scg-filter-label">Year (Sheet)</p>', unsafe_allow_html=True)
 
-    pill_options = ["All"] + all_years  # "All" เป็น option แรกเสมอ
-
-    # ── ลอง st.pills ก่อน (Streamlit ≥ 1.42) ─────────────────────────────
-    _use_pills = hasattr(st, "pills")
+    pill_options = ["All"] + all_years
+    _use_pills   = hasattr(st, "pills")
 
     if _use_pills:
-        # st.pills คืน list ของที่เลือก (selection_mode="multi")
-        # default = ["All"] → แสดงทุกปี
-        prev_pill = st.session_state.get("_f_year_pills_prev", ["All"])
+        if "_f_year_controlled" not in st.session_state:
+            st.session_state["_f_year_controlled"] = ["All"]
+
+        current_state = st.session_state["_f_year_controlled"]
+
+        # inject ค่าเข้า session_state[key] โดยตรงแทนการส่ง default=
+        # st.pills จะ reset widget ทุก rerun ถ้าส่ง default= เข้าไป
+        if "f_year_pills" not in st.session_state:
+            st.session_state["f_year_pills"] = current_state
 
         selected_pills = st.pills(
             label="Year (Sheet)",
             options=pill_options,
             selection_mode="multi",
-            default=prev_pill,
             key="f_year_pills",
             label_visibility="collapsed",
         )
 
-        # ── Logic: All overrides / All auto-deselects ───────────────────
         if not selected_pills:
-            # ไม่มีอะไรเลือก → fallback All
-            selected_pills = ["All"]
+            selected_pills = list(current_state)
 
-        # ตรวจ: user เพิ่ง toggle "All" เข้ามาใหม่ → ล้างปีอื่นออก
-        prev_had_all = "All" in prev_pill
+        prev         = list(current_state)
+        prev_had_all = "All" in prev
         curr_has_all = "All" in selected_pills
+        curr_years   = [p for p in selected_pills if p != "All"]
+
         if curr_has_all and not prev_had_all:
-            # All ถูก activate ใหม่
-            selected_pills = ["All"]
-        elif curr_has_all and prev_had_all and len(selected_pills) > 1:
-            # มี All อยู่แล้ว แต่ user กดปีเพิ่ม → deselect All อัตโนมัติ
-            selected_pills = [p for p in selected_pills if p != "All"]
+            new_state = ["All"]
+        elif curr_has_all and prev_had_all and curr_years:
+            new_state = curr_years
+        elif not curr_has_all and not curr_years:
+            new_state = ["All"]
+        else:
+            new_state = list(selected_pills)
 
-        st.session_state["_f_year_pills_prev"] = selected_pills
+        if new_state != prev:
+            st.session_state["_f_year_controlled"] = new_state
+            st.session_state.pop("f_year_pills", None)
+            st.rerun()
 
-        if "All" in selected_pills:
+        if "All" in new_state:
             selected_years = list(all_years)
         else:
-            selected_years = [p for p in selected_pills if p in all_years]
+            selected_years = [p for p in new_state if p in all_years]
 
     else:
-        # ── Fallback: st.multiselect (Streamlit < 1.42) ────────────────
-        st.caption("💡 Tip: อัปเกรด Streamlit ≥ 1.42 เพื่อใช้ pill selector")
         raw_sel = st.multiselect(
-            "Year (Sheet)",
-            options=all_years,
-            default=all_years,          # default = ทั้งหมด
-            placeholder="เลือกปี (ว่าง = ทุกปี)",
-            key="f_year_multi",
-            label_visibility="collapsed",
+            "Year (Sheet)", options=all_years, default=all_years,
+            placeholder="Select year(s) (blank = all)",
+            key="f_year_multi", label_visibility="collapsed",
         )
         selected_years = list(all_years) if not raw_sel else raw_sel
 
-    # ── แสดง summary badge ─────────────────────────────────────────────────
     if selected_years == list(all_years):
-        badge = f"All {len(all_years)} year(s)"
+        badge_years = "All"
         badge_color = "#1A7A4A"
     else:
-        badge = ", ".join(str(y) for y in selected_years)
+        badge_years = ", ".join(str(y) for y in selected_years)
         badge_color = "#1B4F8A"
 
     st.markdown(
-        f'<span style="font-size:10px;font-weight:600;color:{badge_color};">'
-        f'● {badge}</span>',
+        f'<p style="font-size:11px;color:{badge_color};margin:2px 0 8px 2px;">'
+        f'SELECTED YEAR : {badge_years}</p>',
         unsafe_allow_html=True,
     )
 
-    # ── Filter controls row (granularity, month, type, debt, est) ─────────
     fc2, fc3, fc4, fc5, fc6 = st.columns([1.1, 1.3, 1.3, 1.1, 1.1])
-
     with fc2:
         granularity = st.selectbox(
-            "Period",
-            ["Monthly", "Weekly", "Daily", "Yearly"],
-            key="f_gran",
+            "Period", ["Monthly", "Weekly", "Daily", "Yearly"], key="f_gran",
         )
 
-    # Month options scoped to selected years
     df_scope     = df_raw[df_raw['YEAR'].isin(selected_years)]
     avail_months = sorted(df_scope['MONTH'].dropna().unique().tolist())
     month_opts   = ["All"] + [f"{m:02d} — {MONTH_MAP.get(m, '')}" for m in avail_months]
@@ -220,16 +216,12 @@ def _render_filters(df_raw: pd.DataFrame):
 
     with fc4:
         sel_type = st.selectbox("Product Type", ["All"] + all_types, key="f_type")
-
     with fc5:
         debt_filter = st.selectbox("Debt Risk", ["All", ">= 80%", "< 80%"], key="f_debt")
-
     with fc6:
-        est_filter = st.selectbox("Est. Debt", ["All", ">= 80%", "< 80%"], key="f_est")
+        est_filter  = st.selectbox("Est. Debt",  ["All", ">= 80%", "< 80%"], key="f_est")
 
-    # ── Apply filters ───────────────────────────────────────────────────────
     df = df_raw[df_raw['YEAR'].isin(selected_years)].copy()
-
     if sel_month:
         df = df[df['MONTH'] == sel_month]
     if sel_type != "All" and 'TYPE' in df.columns:
@@ -251,23 +243,33 @@ def _render_filters(df_raw: pd.DataFrame):
 # Row 1 — KPI cards — UNCHANGED
 # =============================================================================
 def _render_kpi_row(df: pd.DataFrame):
-    total_customers  = int(df['CUSTOMER_CODE'].nunique()) if 'CUSTOMER_CODE' in df.columns else 0
-    total_credit     = df['CLEAN_CREDIT_MB'].sum()           if 'CLEAN_CREDIT_MB' in df.columns else 0.0
-    total_debt       = df['CURRENT_DEBT_MILLION_THB'].sum()   if 'CURRENT_DEBT_MILLION_THB' in df.columns else 0.0
-    avg_debt_pct     = (
+    total_customers = int(df['CUSTOMER_CODE'].nunique()) if 'CUSTOMER_CODE' in df.columns else 0
+    total_credit    = df['CLEAN_CREDIT_MB'].sum()          if 'CLEAN_CREDIT_MB' in df.columns else 0.0
+    total_debt      = df['CURRENT_DEBT_MILLION_THB'].sum() if 'CURRENT_DEBT_MILLION_THB' in df.columns else 0.0
+    avg_debt_pct    = (
         df['CURRENT_DEBT_MILLION_THB_PERCENT'].mean() * 100
         if 'CURRENT_DEBT_MILLION_THB_PERCENT' in df.columns else 0.0
     )
+
+    # latest snapshot per customer — ให้สอดคล้องกับกราฟ
+    dedup_col = 'CUSTOMER_NAME' if 'CUSTOMER_NAME' in df.columns else 'CUSTOMER_CODE'
+    snap_kpi = (
+        df.sort_values('DATE', ascending=False).drop_duplicates(subset=[dedup_col])
+        if 'DATE' in df.columns
+        else df.drop_duplicates(subset=[dedup_col])
+    )
+
     high_risk_count  = 0
     est_exceed_count = 0
-    if 'CURRENT_DEBT_MILLION_THB_PERCENT' in df.columns and 'CUSTOMER_CODE' in df.columns:
+    if 'CURRENT_DEBT_MILLION_THB_PERCENT' in snap_kpi.columns:
         high_risk_count = int(
-            df[df['CURRENT_DEBT_MILLION_THB_PERCENT'] >= DEBT_THRESHOLD]['CUSTOMER_CODE'].nunique()
+            (snap_kpi['CURRENT_DEBT_MILLION_THB_PERCENT'] >= DEBT_THRESHOLD).sum()
         )
-    if 'EST_DEBT' in df.columns and 'CUSTOMER_CODE' in df.columns:
+    if 'EST_DEBT' in snap_kpi.columns:
         est_exceed_count = int(
-            df[df['EST_DEBT'] >= DEBT_THRESHOLD]['CUSTOMER_CODE'].nunique()
+            (snap_kpi['EST_DEBT'] >= DEBT_THRESHOLD).sum()
         )
+
     cols  = st.columns(5, gap="small")
     cards = [
         ("Total Customers",    f"{total_customers:,}",   "Distinct codes",                  "info"),
@@ -282,6 +284,56 @@ def _render_kpi_row(df: pd.DataFrame):
         with col:
             st.markdown(kpi_card(label, value, sub, variant), unsafe_allow_html=True)
 
+
+def _render_utilization_search(df: pd.DataFrame):
+    """
+    Search แบบ selectbox + recommend scroll สำหรับ Utilization section
+    ผล filter เก็บใน session_state['_util_filtered_names']
+    ทั้ง bar chart และ pie chart ดึงไปใช้ต่อ
+    """
+    if 'CUSTOMER_NAME' not in df.columns:
+        st.session_state['_util_filtered_names'] = []
+        st.session_state['_util_selected_customer'] = None
+        return
+
+    snap = (
+        df.sort_values('DATE', ascending=False).drop_duplicates(subset=['CUSTOMER_NAME'])
+        if 'DATE' in df.columns
+        else df.drop_duplicates(subset=['CUSTOMER_NAME'])
+    )
+    all_names = sorted(snap['CUSTOMER_NAME'].dropna().unique().tolist())
+
+    search_col, _ = st.columns([2.5, 4])
+    with search_col:
+        st.markdown('<p class="scg-filter-label">Customer Search</p>', unsafe_allow_html=True)
+
+        # selectbox พร้อม recommend scroll — "All" คือ option แรก
+        options = ["All customers"] + all_names
+
+        prev_sel = st.session_state.get('_util_selected_customer', "All customers")
+        default_ix = (
+            options.index(prev_sel)
+            if prev_sel in options else 0
+        )
+
+        selected = st.selectbox(
+            "Customer Search (Utilization)",
+            options=options,
+            index=default_ix,
+            key="utilization_search",
+            label_visibility="collapsed",
+        )
+
+    st.session_state['_util_selected_customer'] = selected
+
+    if selected == "All customers":
+        filtered = all_names
+    else:
+        filtered = [selected]
+
+    st.session_state['_util_filtered_names'] = filtered
+
+
 # =============================================================================
 # Row 2 left — Current Debt % horizontal stack bar
 # CHANGED: replaces _render_avg_debt_bar
@@ -293,38 +345,77 @@ def _render_kpi_row(df: pd.DataFrame):
 #   - Top N slider still present
 #   - 80% danger vline
 # =============================================================================
-def _render_debt_pct_bar(df: pd.DataFrame):
-    # Controls row
-    ctrl1, ctrl2, _ = st.columns([1.4, 1.6, 3])
-    with ctrl1:
-        show_est = st.toggle("Show Est. Future Diff", value=False, key="show_est")
-    with ctrl2:
-        top_n = st.select_slider("Top N", options=[5, 10, 15, 20], value=10, key="top_n")
+def _render_debt_pct_bar(df: pd.DataFrame) -> int:
     needed = {'CUSTOMER_NAME', 'CURRENT_DEBT_MILLION_THB_PERCENT'}
     if not needed.issubset(df.columns):
         st.info("Insufficient data.")
-        return
-    # Latest snapshot per customer
-    snap = (
+        return 10
+
+    if 'CUSTOMER_CODE' in df.columns:
+        distinct_n = df['CUSTOMER_CODE'].nunique()
+    else:
+        distinct_n = df['CUSTOMER_NAME'].nunique()
+    max_n = max(distinct_n, 5)
+
+    ctrl1, ctrl2, ctrl3, _ = st.columns([1.4, 2.2, 1.6, 1.2])
+    with ctrl1:
+        show_est = st.toggle("Show Est. Future Diff", value=False, key="show_est")
+    with ctrl2:
+        top_n_options = list(range(5, max_n + 1))
+        if 10 not in top_n_options:
+            top_n_options = sorted(set(top_n_options + [10]))
+        default_top_n = 10 if 10 in top_n_options else top_n_options[0]
+        top_n = st.select_slider(
+            "Top N", options=top_n_options, value=default_top_n, key="top_n",
+        )
+    with ctrl3:
+        sort_dir = st.selectbox(
+            "Sort",
+            options=["High \u2192 Low", "Low \u2192 High"],
+            index=0,
+            key="avail_sort_dir",
+        )
+
+    # STEP 1: latest snapshot per customer
+    snap_full = (
         df.sort_values('DATE', ascending=False).drop_duplicates(subset=['CUSTOMER_NAME'])
         if 'DATE' in df.columns
         else df.drop_duplicates(subset=['CUSTOMER_NAME'])
     ).copy()
-    snap['DEBT_PCT_DISP'] = snap['CURRENT_DEBT_MILLION_THB_PERCENT'] * 100
-    # Sort by current debt % desc, take top N, then reverse for horizontal bar
+    snap_full['DEBT_PCT_DISP'] = snap_full['CURRENT_DEBT_MILLION_THB_PERCENT'] * 100
+
+    # STEP 2: apply shared search filter
+    filtered_names = st.session_state.get('_util_filtered_names', None)
+    if filtered_names is not None:
+        snap_full = snap_full[snap_full['CUSTOMER_NAME'].isin(filtered_names)]
+
+    if snap_full.empty:
+        st.info("No customer matched the search.")
+        return top_n
+
+    # STEP 3: กรอง zero ออกจาก pool
+    pool = snap_full[snap_full['DEBT_PCT_DISP'] > 0].copy()
+    if pool.empty:
+        pool = snap_full.copy()
+
+    effective_n = min(top_n, len(pool))
+
+    SORT_LOW_HIGH = "Low \u2192 High"
+    sort_asc      = (sort_dir == SORT_LOW_HIGH)
+
     snap = (
-        snap.sort_values('DEBT_PCT_DISP', ascending=False)
-        .head(top_n)
-        .sort_values('DEBT_PCT_DISP', ascending=True)
+        pool
+        .sort_values('DEBT_PCT_DISP', ascending=sort_asc)
+        .head(effective_n)
         .reset_index(drop=True)
     )
-    # Bar colour: danger if >= 80%, else sapphire
+
     base_colors = [
         PALETTE['danger'] if v >= 80 else BAR_BASE
         for v in snap['DEBT_PCT_DISP']
     ]
+
     fig = go.Figure()
-    # Base: Current Debt %
     fig.add_trace(go.Bar(
         y=snap['CUSTOMER_NAME'],
         x=snap['DEBT_PCT_DISP'],
@@ -337,15 +428,16 @@ def _render_debt_pct_bar(df: pd.DataFrame):
         textfont=dict(size=8, color='white'),
         hovertemplate='%{y}<br>Current Debt: %{x:.1f}%<extra></extra>',
     ))
-    # Stack: Est. Future Diff (toggle)
+
     if show_est and 'EST_DEBT' in snap.columns:
+        snap = snap.copy()
         snap['EST_PCT_DISP'] = snap['EST_DEBT'] * 100
         snap['DIFF'] = (snap['EST_PCT_DISP'] - snap['DEBT_PCT_DISP']).clip(lower=0)
-        # colour per bar: if (current + diff) >= 80 → crimson, else amber
         diff_colors = [
             BAR_EST_OVER if (row['DEBT_PCT_DISP'] + row['DIFF']) >= 80 else BAR_EST
             for _, row in snap.iterrows()
         ]
+        # trace จริง — ไม่แสดงใน legend (สีต่างกันต่อ bar)
         fig.add_trace(go.Bar(
             y=snap['CUSTOMER_NAME'],
             x=snap['DIFF'],
@@ -357,68 +449,82 @@ def _render_debt_pct_bar(df: pd.DataFrame):
             insidetextanchor='start',
             textfont=dict(size=8, color='white'),
             hovertemplate='%{y}<br>Est. Future Diff: +%{x:.1f}%<extra></extra>',
+            showlegend=False,
         ))
-        fig.update_layout(barmode='stack')
-    else:
-        fig.update_layout(barmode='stack')
-    # 80% danger vline
+        # dummy trace สำหรับ legend icon สีถูกต้อง (amber เสมอ)
+        fig.add_trace(go.Bar(
+            y=[None], x=[None],
+            orientation='h',
+            name='Est. Future Diff',
+            marker_color=BAR_EST,
+            showlegend=True,
+        ))
+
+    fig.update_layout(barmode='stack')
     fig.add_vline(
-        x=80,
-        line_dash='dash',
-        line_color=PALETTE['threshold'],
-        line_width=1.2,
+        x=80, line_dash='dash',
+        line_color=PALETTE['threshold'], line_width=1.2,
         annotation_text="80%",
         annotation_font=dict(size=8, color=PALETTE['threshold']),
         annotation_position="top",
     )
-    bar_height = max(220, top_n * 28)
+
+    bar_height = max(220, effective_n * 28)
     apply_base_layout(fig, {
         'height': bar_height,
         'margin': dict(l=0, r=40, t=10, b=4),
         'xaxis': dict(
-            title="Current Debt %",
-            ticksuffix="%",
-            showgrid=True,
-            gridcolor=GRID_COLOR,
-            zeroline=False,
-            color=FONT_COLOR,
-            tickfont=dict(size=9),
+            title="Current Debt %", ticksuffix="%",
+            showgrid=True, gridcolor=GRID_COLOR,
+            zeroline=False, color=FONT_COLOR, tickfont=dict(size=9),
             range=[0, max(120, float(snap['DEBT_PCT_DISP'].max()) * 1.2)],
         ),
         'yaxis': dict(
-            showgrid=False,
-            color=FONT_COLOR,
-            tickfont=dict(size=9),
+            showgrid=False, color=FONT_COLOR, tickfont=dict(size=9),
+            categoryorder='total ascending',
         ),
         'showlegend': show_est,
         'legend': dict(
-            orientation='h',
-            yanchor='bottom', y=1.02,
-            xanchor='right', x=1,
-            font=dict(size=9),
+            orientation='h', yanchor='bottom', y=1.02,
+            xanchor='right', x=1, font=dict(size=9),
         ),
     })
     st.plotly_chart(fig, use_container_width=True)
+    return top_n
+
 
 # =============================================================================
 # Row 2 right — Credit Risk Distribution PIE — UNCHANGED
 # =============================================================================
 def _render_risk_pie(df: pd.DataFrame):
     st.markdown(
-        '<p class="section-sub">Credit Risk Distribution</p>',
+        '<p class="scg-chart-label">Credit Risk Distribution</p>',
         unsafe_allow_html=True,
     )
     if 'CURRENT_DEBT_MILLION_THB_PERCENT' not in df.columns or 'CUSTOMER_CODE' not in df.columns:
         st.info("No data.")
         return
+
     snap = (
-        df.sort_values('DATE', ascending=False).drop_duplicates(subset=['CUSTOMER_CODE'])
+        df.sort_values('DATE', ascending=False).drop_duplicates(subset=['CUSTOMER_NAME'])
         if 'DATE' in df.columns
-        else df.drop_duplicates(subset=['CUSTOMER_CODE'])
-    )
-    safe_n   = int((snap['CURRENT_DEBT_MILLION_THB_PERCENT'] < DEBT_THRESHOLD).sum())
+        else df.drop_duplicates(subset=['CUSTOMER_NAME'])
+    ).copy()
+
+    filtered_names = st.session_state.get('_util_filtered_names', None)
+    if filtered_names is not None and 'CUSTOMER_NAME' in snap.columns:
+        snap = snap[snap['CUSTOMER_NAME'].isin(filtered_names)]
+
+    if snap.empty:
+        st.info("No customer matched the search.")
+        return
+
+    safe_n   = int(((snap['CURRENT_DEBT_MILLION_THB_PERCENT'] > 0) &
+                    (snap['CURRENT_DEBT_MILLION_THB_PERCENT'] < DEBT_THRESHOLD)).sum())
     danger_n = int((snap['CURRENT_DEBT_MILLION_THB_PERCENT'] >= DEBT_THRESHOLD).sum())
+    zero_n   = int((snap['CURRENT_DEBT_MILLION_THB_PERCENT'] <= 0).sum())
     nodata_n = int(snap['CURRENT_DEBT_MILLION_THB_PERCENT'].isna().sum())
+
     labels, values, colors = [], [], []
     for lbl, val, color in [
         ('Safe < 80%',       safe_n,   PALETTE['safe']),
@@ -429,9 +535,11 @@ def _render_risk_pie(df: pd.DataFrame):
             labels.append(lbl)
             values.append(val)
             colors.append(color)
+
     if not labels:
         st.info("No data.")
         return
+
     fig = go.Figure(go.Pie(
         labels=labels, values=values,
         marker=dict(colors=colors, line=dict(color='white', width=2)),
@@ -441,7 +549,7 @@ def _render_risk_pie(df: pd.DataFrame):
         showlegend=False,
     ))
     apply_base_layout(fig, {
-        'height': 260,
+        'height': 200,
         'margin': dict(l=8, r=8, t=8, b=8),
         'showlegend': False,
     })
@@ -610,7 +718,7 @@ def _render_trend(df: pd.DataFrame, granularity: str):
 # =============================================================================
 # Row 4 — Customer Credit Risk Preview (full width) — UNCHANGED
 # =============================================================================
-def _render_customer_table(df: pd.DataFrame):
+def _render_customer_table(df: pd.DataFrame, top_n: int = 10):
     c_mode, _ = st.columns([2, 6])
     with c_mode:
         mode = st.radio(
@@ -626,21 +734,24 @@ def _render_customer_table(df: pd.DataFrame):
     ]
     avail_cols = [c for c in desired_cols if c in df.columns]
     dedup_key  = ['CUSTOMER_NAME'] if 'CUSTOMER_NAME' in avail_cols else None
+
+    # CHANGED: head() ใช้ top_n ที่รับมาจาก _render_debt_pct_bar
     if mode == "Top Clean Credit" and 'CLEAN_CREDIT_MB' in df.columns:
         tbl = (
             df[avail_cols].drop_duplicates(subset=dedup_key)
             .sort_values('CLEAN_CREDIT_MB', ascending=False)
-            .head(10).reset_index(drop=True)
+            .head(top_n).reset_index(drop=True)
         )
     elif mode == "Top Risk Customers" and 'CURRENT_DEBT_MILLION_THB_PERCENT' in df.columns:
         tbl = (
             df[avail_cols].drop_duplicates(subset=dedup_key)
             .sort_values('CURRENT_DEBT_MILLION_THB_PERCENT', ascending=False)
-            .head(10).reset_index(drop=True)
+            .head(top_n).reset_index(drop=True)
         )
     else:
         st.info("No data.")
         return
+
     st.dataframe(
         tbl,
         column_config={
@@ -656,46 +767,71 @@ def _render_customer_table(df: pd.DataFrame):
         use_container_width=True, height=320, hide_index=True,
     )
 
-# =============================================================================
-# Row 5 — Customer Trend Analysis — UNCHANGED except emoji removed
-# =============================================================================
+
 # =============================================================================
 # Row 5 — Customer Trend Analysis
-# CHANGED:
-#   - Est. Debt % → แสดงเป็นเส้นสีเหลือง (dash dot) แทนจุด
-#   - Hover tooltip → เพิ่ม Clean Credit / Current Debt / Utilization %
 # =============================================================================
 def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected_years: list):
     required = {'CUSTOMER_NAME', 'CURRENT_DEBT_MILLION_THB_PERCENT', 'DATE'}
     if not required.issubset(df_raw.columns):
         st.info("Required columns: CUSTOMER_NAME, CURRENT_DEBT_MILLION_THB_PERCENT, DATE")
         return
+
+    # CHANGED: scope ตาม selected_years เหมือน df ที่ผ่าน filter แล้ว
+    # ใช้ df_raw โดยตรง (ไม่กรอง month/type/debt เพื่อให้เห็น trend เต็ม)
+    # แต่ต้องมั่นใจว่ากรอง YEAR ตรงกับ filter ที่เลือก
     df_scoped = df_raw[df_raw['YEAR'].isin(selected_years)].copy()
-    all_names = sorted(df_scoped['CUSTOMER_NAME'].dropna().unique().tolist())
+
+    # CHANGED: validate ลูกค้าครบ — ดึงจาก CUSTOMER_CODE ก่อน (unique identity)
+    # แล้ว map กลับมาเป็น CUSTOMER_NAME เพื่อป้องกัน name drift / ข้อมูลหล่น
+    if 'CUSTOMER_CODE' in df_scoped.columns:
+        # group by code → เอา name ล่าสุด (sort DATE desc)
+        name_map = (
+            df_scoped.dropna(subset=['CUSTOMER_CODE', 'CUSTOMER_NAME'])
+            .sort_values('DATE', ascending=False)
+            .drop_duplicates(subset=['CUSTOMER_CODE'])[['CUSTOMER_CODE', 'CUSTOMER_NAME']]
+            .set_index('CUSTOMER_CODE')['CUSTOMER_NAME']
+            .to_dict()
+        )
+        # distinct codes ที่มีข้อมูล trend ครบ (มี DATE + debt %)
+        valid_codes = (
+            df_scoped
+            .dropna(subset=['DATE', 'CURRENT_DEBT_MILLION_THB_PERCENT', 'CUSTOMER_CODE'])
+            ['CUSTOMER_CODE'].unique().tolist()
+        )
+        all_names = sorted(
+            set(name_map[c] for c in valid_codes if c in name_map),
+            key=lambda x: x.lower()
+        )
+    else:
+        # fallback: ใช้ CUSTOMER_NAME โดยตรง แต่ต้องมี debt % และ DATE ครบ
+        all_names = sorted(
+            df_scoped
+            .dropna(subset=['DATE', 'CURRENT_DEBT_MILLION_THB_PERCENT', 'CUSTOMER_NAME'])
+            ['CUSTOMER_NAME'].unique().tolist(),
+            key=lambda x: x.lower()
+        )
+
     if not all_names:
         st.info("No customer data for the selected year(s).")
         return
 
-    # ── Local filter row ───────────────────────────────────────────────────
+    # --- ส่วนที่เหลือทั้งหมดเหมือนเดิม ไม่แตะ ---
     lf1, lf2, lf_space, lf3 = st.columns([2.5, 1.4, 1.6, 1.5])
     with lf1:
         st.markdown(
-            '<p style="font-size:11px;font-weight:600;color:#1B4F8A;'
-            'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">'
-            'Customer Search</p>',
+            '<p class="scg-filter-label">Customer Search</p>',
             unsafe_allow_html=True,
         )
         search_query = st.text_input(
             "Customer Search",
-            placeholder="Type name or Customer Code…",
+            placeholder="Type name or Customer Code...",
             key="trend_search",
             label_visibility="collapsed",
         ).strip()
     with lf2:
         st.markdown(
-            '<p style="font-size:11px;font-weight:600;color:#1B4F8A;'
-            'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">'
-            'Period (Trend)</p>',
+            '<p class="scg-filter-label">Period (Trend)</p>',
             unsafe_allow_html=True,
         )
         gran_options  = ["Monthly", "Weekly", "Daily", "Yearly"]
@@ -707,9 +843,7 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         )
     with lf3:
         st.markdown(
-            '<p style="font-size:11px;font-weight:600;color:#1B4F8A;'
-            'text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">'
-            'Est. Debt %</p>',
+            '<p class="scg-filter-label">Est. Debt %</p>',
             unsafe_allow_html=True,
         )
         show_est_line = st.toggle(
@@ -722,12 +856,11 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         badge_color = "#1A7A4A" if show_est_line else "#8A9BB0"
         badge_text  = "ON — visible on chart" if show_est_line else "OFF — hidden"
         st.markdown(
-            f'<span style="font-size:10px;color:{badge_color};font-weight:600;">'
-            f'● {badge_text}</span>',
+            f'<p style="font-size:10px;color:{badge_color};margin:2px 0 0 2px;">'
+            f'{badge_text}</p>',
             unsafe_allow_html=True,
         )
 
-    # ── Customer search / filter ───────────────────────────────────────────
     if search_query:
         q = search_query.lower()
         filtered_names = [n for n in all_names if q in n.lower()]
@@ -740,13 +873,15 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
             filtered_names = list(dict.fromkeys(filtered_names + code_hits))
     else:
         filtered_names = all_names
+
     if not filtered_names:
         st.warning(f"No customer matched '{search_query}'.")
         return
+
     st.markdown(
-        f'<p style="font-size:11px;color:#5a6a80;margin:6px 0 4px 0;">'
-        f'<b>{len(filtered_names)}</b> result(s)'
-        + (f' — search: <i>{search_query}</i>' if search_query else '')
+        f'<p style="font-size:10px;color:#3a4a60;margin:2px 0 6px 2px;">'
+        f'{len(filtered_names)} result(s)'
+        + (f' — search: {search_query}' if search_query else '')
         + '</p>',
         unsafe_allow_html=True,
     )
@@ -762,7 +897,6 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         key="trend_customer_select",
     )
 
-    # ── Build time-series for selected customer ────────────────────────────
     cdf = (
         df_scoped[df_scoped['CUSTOMER_NAME'] == selected_customer]
         .dropna(subset=['DATE', 'CURRENT_DEBT_MILLION_THB_PERCENT'])
@@ -778,8 +912,6 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
     cdf['WEEK_NUM']    = cdf['DATE'].apply(lambda d: d.isocalendar()[1] if pd.notna(d) else None)
     cdf['MONTH_LABEL'] = cdf['MONTH_NUM'].map(MONTH_MAP)
 
-    # ── Granularity grouping — รวม CURRENT_DEBT + CLEAN_CREDIT เข้า grp ──
-    #    ใช้ mean() สำหรับตัวเงิน (กรณี daily อาจมีหลายแถวต่อวัน)
     debt_col   = 'CURRENT_DEBT_MILLION_THB'
     credit_col = 'CLEAN_CREDIT_MB'
     extra_agg  = {
@@ -806,7 +938,7 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         grp = _group(cdf, ['YEAR_COL', 'WEEK_NUM'],
                      ['YEAR_COL', 'WEEK_NUM'],
                      lambda r: f"{r['YEAR_COL']}-W{int(r['WEEK_NUM']):02d}")
-    else:  # Daily
+    else:
         grp = _group(cdf, ['DATE'], ['DATE'],
                      lambda r: str(r['DATE']))
 
@@ -814,7 +946,6 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         st.info("No data for this granularity.")
         return
 
-    # ── KPI strip ─────────────────────────────────────────────────────────
     latest_util   = float(grp['UTIL_PCT'].iloc[-1])
     avg_util      = float(grp['UTIL_PCT'].mean())
     period_change = (
@@ -843,34 +974,25 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
             v = lr.get(credit_col)
             if pd.notna(v):
                 kpi_blocks.append(("Credit Limit",  f"฿{float(v):,.0f}M", FONT_COLOR))
+
     card_style = (
         "background:#f0f4fa;border-radius:8px;padding:8px 16px;"
         "min-width:100px;flex:1 1 auto;"
     )
     kpi_html = "".join(
         f'<div style="{card_style}">'
-        f'<div style="font-size:10px;color:#5a6a80;">{lbl}</div>'
-        f'<div style="font-size:1.15rem;font-weight:700;color:{col};">{val}</div>'
+        f'<p style="font-size:9px;color:#8A9BB0;margin:0;">{lbl}</p>'
+        f'<p style="font-size:14px;font-weight:700;color:{col};margin:0;">{val}</p>'
         f'</div>'
         for lbl, val, col in kpi_blocks
     )
     st.markdown(
-        f'<div style="display:flex;gap:8px;margin:10px 0 14px 0;flex-wrap:wrap;">{kpi_html}</div>',
+        f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">{kpi_html}</div>',
         unsafe_allow_html=True,
     )
 
-    # ── Build customdata array for rich hover ─────────────────────────────
-    #    columns: [0] debt_mb, [1] credit_mb
-    #    ถ้าคอลัมน์ไม่มีในข้อมูล → fill None
     has_debt   = debt_col   in grp.columns
     has_credit = credit_col in grp.columns
-
-    def _fmt_mb(series_or_none, row_idx):
-        """คืน string สำหรับ customdata — 'N/A' ถ้าไม่มีข้อมูล"""
-        if series_or_none is None:
-            return "N/A"
-        v = series_or_none.iloc[row_idx]
-        return f"฿{v:,.1f} M" if pd.notna(v) else "N/A"
 
     customdata = [
         [
@@ -880,24 +1002,21 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         for i in range(len(grp))
     ]
 
-    # hovertemplate — จัด 3 บรรทัดสะอาด
     hover_util = (
-        "<b>%{x}</b><br>"
+        "%{x}<br>"
         "──────────────────<br>"
-        "📊 Utilization : <b>%{y:.1f}%</b><br>"
-        "💳 Clean Credit : <b>%{customdata[1]:,.1f} M฿</b><br>"
-        "📉 Current Debt : <b>%{customdata[0]:,.1f} M฿</b>"
+        "Utilization : %{y:.1f}%<br>"
+        "Clean Credit : %{customdata[1]:,.1f} M฿<br>"
+        "Current Debt : %{customdata[0]:,.1f} M฿"
         "<extra></extra>"
     )
-    # กรณีไม่มีข้อมูลตัวเงิน → hovertemplate แบบเรียบ
     if not has_debt and not has_credit:
         hover_util = (
-            "<b>%{x}</b><br>"
-            "Utilization : <b>%{y:.1f}%</b>"
+            "%{x}<br>"
+            "Utilization : %{y:.1f}%"
             "<extra></extra>"
         )
 
-    # ── Chart ─────────────────────────────────────────────────────────────
     point_colors = [
         PALETTE['danger'] if v >= 80
         else (PALETTE['amber'] if v >= 50 else PALETTE['sapphire_lt'])
@@ -905,7 +1024,6 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
     ]
     fig = go.Figure()
 
-    # Area fill (decorative)
     fig.add_trace(go.Scatter(
         x=grp['X'], y=grp['UTIL_PCT'],
         mode='none', fill='tozeroy',
@@ -913,7 +1031,6 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         showlegend=False, hoverinfo='skip',
     ))
 
-    # Utilization line — with rich hover
     fig.add_trace(go.Scatter(
         x=grp['X'],
         y=grp['UTIL_PCT'],
@@ -925,7 +1042,6 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         hovertemplate=hover_util,
     ))
 
-    # ── Est. Debt % line (toggle) — เส้นสีเหลือง dash-dot ────────────────
     if show_est_line and 'EST_DEBT' in df_scoped.columns:
         est_df = (
             df_scoped[df_scoped['CUSTOMER_NAME'] == selected_customer]
@@ -968,29 +1084,19 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
             fig.add_trace(go.Scatter(
                 x=egrp['X'],
                 y=egrp['EST_PCT'],
-                # CHANGED: mode='lines' — เส้นต่อเนื่อง ไม่ใช่จุด
                 mode='lines+markers',
                 name='Est. Debt %',
-                line=dict(
-                    color=PALETTE['amber_lt'],   # สีเหลือง
-                    width=2,
-                    dash='dot',                  # เส้นประ เพื่อแยกจาก Utilization
-                ),
-                marker=dict(
-                    symbol='diamond',
-                    size=6,
-                    color=PALETTE['amber_lt'],
-                    line=dict(color='white', width=1),
-                ),
+                line=dict(color=PALETTE['amber_lt'], width=2, dash='dot'),
+                marker=dict(symbol='diamond', size=6, color=PALETTE['amber_lt'],
+                            line=dict(color='white', width=1)),
                 hovertemplate=(
-                    "<b>%{x}</b><br>"
+                    "%{x}<br>"
                     "──────────────────<br>"
-                    "🔮 Est. Debt : <b>%{y:.1f}%</b>"
+                    "Est. Debt : %{y:.1f}%"
                     "<extra></extra>"
                 ),
             ))
 
-    # 80% danger line
     fig.add_hline(
         y=80, line_dash='dash',
         line_color=PALETTE['threshold'], line_width=1.2,
@@ -1024,14 +1130,13 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str, selected
         ),
         'title': dict(
             text=(
-                f"<b>{selected_customer}</b>"
+                f"{selected_customer}"
                 f" — Credit Utilization Trend ({local_gran})"
                 f" · {', '.join(str(y) for y in sorted(selected_years))}"
             ),
             font=dict(size=11, color=FONT_COLOR),
             x=0, xanchor='left',
         ),
-        # CHANGED: hoverlabel styling — ให้ tooltip ดูสะอาด
         'hoverlabel': dict(
             bgcolor='white',
             bordercolor='#d0dae6',

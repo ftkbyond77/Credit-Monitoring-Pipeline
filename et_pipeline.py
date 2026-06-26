@@ -175,13 +175,6 @@ def _transform_availability(df, sheet_name):
 
     # ------------------------------------------------------------------
     # 5. Fallback: derive CURRENT_DEBT_MILLION_THB_PERCENT when missing
-    #
-    #    Some sheets (e.g. 2023) do not carry a dedicated percent column.
-    #    After numeric casting the column will be all-zero or absent.
-    #    When that happens, recalculate from:
-    #        CURRENT_DEBT_MILLION_THB / CLEAN_CREDIT_MB
-    #    Result is stored as a ratio (0.0 – 1.0+) consistent with the
-    #    post-transform format used by the rest of the application.
     # ------------------------------------------------------------------
     has_debt_col = 'CURRENT_DEBT_MILLION_THB_PERCENT' in df.columns
     needs_fallback = (
@@ -197,7 +190,9 @@ def _transform_availability(df, sheet_name):
             clean_credit = df['CLEAN_CREDIT_MB'].replace(0, np.nan)
             df['CURRENT_DEBT_MILLION_THB_PERCENT'] = (
                 df['CURRENT_DEBT_MILLION_THB'] / clean_credit
-            ).fillna(0.0)
+            ).fillna(0.0).clip(upper=10.0)
+            # clip upper=10.0 (1000%) กัน outlier จาก clean_credit ผิดปกติ
+            # ค่าปกติควรอยู่ 0.0-2.0 สูงสุดไม่ควรเกิน 10x
 
     debug_info = {
         'raw_rows': raw_rows_count,
