@@ -206,10 +206,20 @@ def _transform_availability(df, sheet_name):
 
 def _clean_overdue(df):
     df.columns = [str(c).replace("'", "").strip() for c in df.columns]
-    if 'OverdueAmount' in df.columns:
-        df['OverdueAmount'] = pd.to_numeric(df['OverdueAmount'], errors='coerce').fillna(0.0)
-    if 'CollectionDate' in df.columns:
-        df['CollectionDate'] = df['CollectionDate'].astype(str).replace('nan', '')
+
+    for col in ("OriginalDueDate", "CollectionDate", "CustomerDueDate"):
+        if col in df.columns:
+            df[col] = (
+                df[col]
+                .astype(str)
+                .str.strip()
+                .replace({"nan": "", "NaT": "", "#": "", "None": ""})
+            )
+
+    for col in ("OverdueAmount", "InvoiceAmount"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
+
     return df
 
 
