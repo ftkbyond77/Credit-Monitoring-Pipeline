@@ -122,6 +122,17 @@ def render():
 
     run_credit_moni_logging(df_overdue_prep, df_filtered, selected_company)
 
+    # ==================================================================
+    # ZONE 1 — HEALTH SNAPSHOT
+    # ดูสุขภาพ credit ณ ปัจจุบัน
+    # ==================================================================
+    st.markdown(
+        "<div style='font-size:0.72rem;font-weight:700;color:#8A9BB0;"
+        "text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 4px'>"
+        "ZONE 1 — HEALTH SNAPSHOT</div>",
+        unsafe_allow_html=True,
+    )
+
     st.markdown(section_header("Monitoring Health — Key Signals"), unsafe_allow_html=True)
     _render_kpi_row(df_filtered)
     st.markdown("", unsafe_allow_html=True)
@@ -142,6 +153,51 @@ def render():
         unsafe_allow_html=True,
     )
     _render_watchlist(df_filtered)
+    st.markdown("", unsafe_allow_html=True)
+
+    # ==================================================================
+    # ZONE 2 — PLANNING
+    # วางแผน collection ข้างหน้า
+    # ==================================================================
+    st.markdown(
+        "<div style='font-size:0.72rem;font-weight:700;color:#8A9BB0;"
+        "text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 4px'>"
+        "ZONE 2 — PLANNING</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(section_header("Collection Pipeline"), unsafe_allow_html=True)
+    _render_collection_pipeline(df_overdue_prep, selected_company)
+    st.markdown("", unsafe_allow_html=True)
+
+    st.markdown(section_header("Cash Inflow Planning"), unsafe_allow_html=True)
+    _render_cash_inflow_forecast(df_overdue_prep, selected_company)
+    st.markdown("", unsafe_allow_html=True)
+
+    st.markdown(section_header("Collection Planning"), unsafe_allow_html=True)
+    _render_future_collection_forecast(df_overdue_prep, selected_company)
+    st.markdown("", unsafe_allow_html=True)
+
+    st.markdown(section_header("Credit Planner — Action Board"), unsafe_allow_html=True)
+    _render_credit_planner_board(df_filtered)
+    st.markdown("", unsafe_allow_html=True)
+
+    # ==================================================================
+    # ZONE 3 — HISTORICAL ANALYSIS
+    # ย้อนหลัง วิเคราะห์ pattern
+    # ==================================================================
+    st.markdown(
+        "<div style='font-size:0.72rem;font-weight:700;color:#8A9BB0;"
+        "text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 4px'>"
+        "ZONE 3 — HISTORICAL ANALYSIS</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        section_header("Credit Journey — Invoice Extension Sankey"),
+        unsafe_allow_html=True,
+    )
+    _render_credit_journey_sankey(df_overdue_prep, selected_company)
     st.markdown("", unsafe_allow_html=True)
 
     st.markdown(
@@ -170,29 +226,10 @@ def render():
     _render_collection_detail_table(df_overdue_prep, selected_company, granularity)
     st.markdown("", unsafe_allow_html=True)
 
-    st.markdown(section_header("Collection Pipeline"), unsafe_allow_html=True)
-    _render_collection_pipeline(df_overdue_prep, selected_company)
-    st.markdown("", unsafe_allow_html=True)
-
-    st.markdown(section_header("Future Cash Inflow Forecast"), unsafe_allow_html=True)
-    _render_cash_inflow_forecast(df_overdue_prep, selected_company)
-    st.markdown("", unsafe_allow_html=True)
-
-    st.markdown(section_header("Future Collection Forecast"), unsafe_allow_html=True)
-    _render_future_collection_forecast(df_overdue_prep, selected_company)
-    st.markdown("", unsafe_allow_html=True)
-
-    st.markdown(section_header("Credit Planner — Action Board"), unsafe_allow_html=True)
-    _render_credit_planner_board(df_filtered)
-    st.markdown("", unsafe_allow_html=True)
-
-    st.markdown(section_header("Credit Journey — Invoice Extension Sankey"), unsafe_allow_html=True)
-    _render_credit_journey_sankey(df_overdue_prep, selected_company)
-    st.markdown("", unsafe_allow_html=True)
-
     with st.expander("View Joined Records — Credit Availability x Overdue", expanded=False):
         _render_joined_table(df_filtered)
     st.markdown("", unsafe_allow_html=True)
+
 
 # =============================================================================
 # Data Preparation
@@ -250,20 +287,19 @@ def _prepare_overdue(df: pd.DataFrame) -> pd.DataFrame:
             pd.to_numeric(df["Customer"], errors="coerce").fillna(0).astype(int)
         )
 
-    # OverdueAmount > 0  = มียอดค้าง ยังไม่ได้จ่าย (Debit)
-    # OverdueAmount = 0  = จ่ายแล้ว
-    # OverdueAmount < 0  = Credit Note
+    # --- Classify OverdueAmount ---
+    # > 0 = ยังค้างอยู่ (ยังไม่จ่าย)
+    # = 0 = จ่ายแล้ว
+    # < 0 = Credit Note (monitor แยกกลุ่ม)
     df["IsOverdue"]    = df["OverdueAmount"] > 0
     df["IsCreditNote"] = df["OverdueAmount"] < 0
     df["OverdueAbs"]   = df["OverdueAmount"].clip(lower=0)
-
-    # IsPaid = OverdueAmount == 0 (จ่ายแล้ว ยอดหมด)
-    df["IsPaid"] = df["OverdueAmount"] == 0
+    df["IsPaid"]       = df["OverdueAmount"] == 0
 
     today = pd.Timestamp("today").normalize()
 
+    # --- DPD: นับจาก OriginalDueDate ถึงวันนี้ เฉพาะ row ที่ยังไม่จ่าย ---
     if "OriginalDueDate" in df.columns:
-        # DPD: นับจาก OriginalDueDate ถึงวันนี้ เฉพาะ row ที่ยังไม่จ่าย
         df["DPD"] = np.where(
             df["IsPaid"],
             0,
@@ -284,10 +320,8 @@ def _prepare_overdue(df: pd.DataFrame) -> pd.DataFrame:
             labels=["1-30", "31-60", "61-90", "90+"],
         )
 
-    # CollectionDate = planned collection / extension date ไม่ใช่วันจ่ายจริง
-    # ใช้เปรียบเทียบ extension เท่านั้น ไม่ใช้ classify paid/unpaid
+    # --- Extension: CollectionDate คือด่านสุดท้าย (ขอบเขต extension) ---
     if "CollectionDate" in df.columns and "OriginalDueDate" in df.columns:
-        # Extension = CollectionDate > OriginalDueDate
         df["HasExtension"] = (
             df["CollectionDate"].notna()
             & df["OriginalDueDate"].notna()
@@ -302,7 +336,7 @@ def _prepare_overdue(df: pd.DataFrame) -> pd.DataFrame:
         df["HasExtension"]  = False
         df["ExtensionDays"] = 0
 
-    # CustomerDueDate = วันที่ลูกค้าบอกว่าจะจ่าย
+    # --- CustomerExtDays: วันที่ลูกค้า confirm ว่าจะจ่าย ห่างจากกำหนดเดิม ---
     if "CustomerDueDate" in df.columns and "OriginalDueDate" in df.columns:
         df["CustomerExtDays"] = np.where(
             df["CustomerDueDate"].notna() & df["OriginalDueDate"].notna(),
@@ -312,33 +346,41 @@ def _prepare_overdue(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["CustomerExtDays"] = 0
 
-    # PaidOnTime / PaidLate / NotCollected — ใช้ IsPaid (OverdueAmount == 0)
-    # เทียบกับ OriginalDueDate ไม่ได้เพราะไม่มีวันจ่ายจริง
-    # ใช้ CustomerDueDate เปรียบเทียบกับ OriginalDueDate แทน
-    if "CustomerDueDate" in df.columns and "OriginalDueDate" in df.columns:
+    # --- PaidOnTime / PaidLate / NotCollected ---
+    # ใช้ CollectionDate เป็นด่านสุดท้าย (fallback จาก CustomerDueDate)
+    # PaidOnTime   = IsPaid & CollectionDate <= OriginalDueDate (ไม่ขยาย หรือขยายน้อยมาก)
+    # PaidLate     = IsPaid & CollectionDate > OriginalDueDate  (จ่ายแล้วแต่ขยายออกไป)
+    # NotCollected = OverdueAmount > 0 (ยังไม่จ่าย)
+    if "CollectionDate" in df.columns and "OriginalDueDate" in df.columns:
         is_invoice = df["OverdueAmount"] >= 0
 
-        # PaidOnTime = จ่ายแล้ว (IsPaid) และ CustomerDueDate <= OriginalDueDate
         df["PaidOnTime"] = (
             df["IsPaid"]
             & is_invoice
-            & df["CustomerDueDate"].notna()
+            & df["CollectionDate"].notna()
             & df["OriginalDueDate"].notna()
-            & (df["CustomerDueDate"] <= df["OriginalDueDate"])
+            & (df["CollectionDate"] <= df["OriginalDueDate"])
         )
-        # PaidLate = จ่ายแล้ว (IsPaid) และ CustomerDueDate > OriginalDueDate
         df["PaidLate"] = (
             df["IsPaid"]
             & is_invoice
-            & df["CustomerDueDate"].notna()
+            & df["CollectionDate"].notna()
             & df["OriginalDueDate"].notna()
-            & (df["CustomerDueDate"] > df["OriginalDueDate"])
+            & (df["CollectionDate"] > df["OriginalDueDate"])
         )
-        # NotCollected = ยังไม่จ่าย (OverdueAmount > 0)
+        # IsPaid แต่ไม่มี date ครบ → Unknown (ไม่ classify ทั้งคู่)
+        # OriginalDueDate หรือ CustomerDueDate เป็น # → OverdueAmount = 0 → IsPaid = True
+        df["PaidUnknown"] = (
+            df["IsPaid"]
+            & is_invoice
+            & (df["OriginalDueDate"].isna() | df["CollectionDate"].isna())
+        )
         df["NotCollected"] = df["OverdueAmount"] > 0
+
     else:
+        df["PaidOnTime"]   = df["IsPaid"]
         df["PaidLate"]     = False
-        df["PaidOnTime"]   = False
+        df["PaidUnknown"]  = False
         df["NotCollected"] = df["OverdueAmount"] > 0
 
     return df
@@ -505,7 +547,7 @@ def _render_filters(df_avail, df_overdue, df_joined):
             df_avail["AVAIL_YEAR"].dropna().astype(str).unique().tolist()
         )
 
-    # --- Customer list สำหรับ recommend ---
+    # Customer Name list
     all_customer_names = []
     for col in ("CustomerName", "AVAIL_CUSTOMER_NAME"):
         if col in df_joined.columns:
@@ -514,7 +556,7 @@ def _render_filters(df_avail, df_overdue, df_joined):
                 .dropna()
                 .astype(str)
                 .str.strip()
-                .replace({"", "nan", "None"}, None)
+                .replace({"": None, "nan": None, "None": None})
                 .dropna()
                 .unique()
                 .tolist()
@@ -522,15 +564,22 @@ def _render_filters(df_avail, df_overdue, df_joined):
             all_customer_names = sorted(names)
             break
 
-    # Row 1 — labels (ลบ DPD Bucket ออก → เหลือ 4 cols)
-    COLS = [1.0, 1.0, 1.0, 1.8]
-    lc1, lc2, lc3, lc5 = st.columns(COLS, gap="small")
-    with lc1: st.markdown(f"<span style='{LABEL_STYLE}'>Company Code</span>",       unsafe_allow_html=True)
-    with lc2: st.markdown(f"<span style='{LABEL_STYLE}'>Overdue Due Year</span>",   unsafe_allow_html=True)
-    with lc3: st.markdown(f"<span style='{LABEL_STYLE}'>Risk Tier</span>",          unsafe_allow_html=True)
+    # Customer Code list
+    all_customer_codes = []
+    if "Customer" in df_joined.columns:
+        all_customer_codes = sorted(
+            df_joined["Customer"].dropna().astype(int).unique().tolist()
+        )
+
+    COLS = [1.0, 1.0, 1.0, 1.4, 1.4]
+    lc1, lc2, lc3, lc4, lc5 = st.columns(COLS, gap="small")
+    with lc1: st.markdown(f"<span style='{LABEL_STYLE}'>Company Code</span>",         unsafe_allow_html=True)
+    with lc2: st.markdown(f"<span style='{LABEL_STYLE}'>Overdue Due Year</span>",     unsafe_allow_html=True)
+    with lc3: st.markdown(f"<span style='{LABEL_STYLE}'>Risk Tier</span>",            unsafe_allow_html=True)
+    with lc4: st.markdown(f"<span style='{LABEL_STYLE}'>Search Customer Code</span>", unsafe_allow_html=True)
     with lc5: st.markdown(f"<span style='{LABEL_STYLE}'>Search Customer Name</span>", unsafe_allow_html=True)
 
-    wc1, wc2, wc3, wc5 = st.columns(COLS, gap="small")
+    wc1, wc2, wc3, wc4, wc5 = st.columns(COLS, gap="small")
 
     with wc1:
         selected_company = st.selectbox(
@@ -538,6 +587,7 @@ def _render_filters(df_avail, df_overdue, df_joined):
             index=default_idx, key="mon_company",
             label_visibility="collapsed",
         )
+
     with wc2:
         due_year_opts = ["All"] + [str(y) for y in overdue_due_years]
         selected_due_year = st.selectbox(
@@ -551,6 +601,7 @@ def _render_filters(df_avail, df_overdue, df_joined):
                 "ถ้าไม่มีข้อมูลปีนั้นจะใช้ snapshot ล่าสุดที่มี"
             ),
         )
+
     with wc3:
         tier_options = ["All", "Critical", "High Risk", "Watch", "Healthy", "Unknown"]
         selected_tier = st.selectbox(
@@ -558,8 +609,48 @@ def _render_filters(df_avail, df_overdue, df_joined):
             index=0, key="mon_tier",
             label_visibility="collapsed",
         )
+
+    with wc4:
+        code_search_query = st.text_input(
+            "Search Customer Code",
+            placeholder="Type code to filter...",
+            key="mon_code_search",
+            label_visibility="collapsed",
+        ).strip()
+
+        if code_search_query:
+            filtered_codes = [
+                c for c in all_customer_codes
+                if code_search_query in str(c)
+            ]
+        else:
+            filtered_codes = all_customer_codes
+
+        code_options = ["All codes"] + [str(c) for c in filtered_codes]
+
+        prev_code  = st.session_state.get("_mon_selected_code", "All codes")
+        default_code_ix = (
+            code_options.index(prev_code)
+            if prev_code in code_options else 0
+        )
+
+        selected_code_option = st.selectbox(
+            "Customer Code Recommend",
+            options=code_options,
+            index=default_code_ix,
+            key="mon_code_recommend",
+            label_visibility="collapsed",
+        )
+        st.session_state["_mon_selected_code"] = selected_code_option
+
+        if filtered_codes and code_search_query:
+            st.markdown(
+                f"<span style='font-size:0.72rem;color:#3D5166;'>"
+                f"{len(filtered_codes)} result(s) — code: {code_search_query}</span>",
+                unsafe_allow_html=True,
+            )
+
     with wc5:
-        # --- Customer Search + Recommend (pattern เดียวกับ view_avail Trend Section) ---
         search_query = st.text_input(
             "Search Customer Name",
             placeholder="Type name to filter...",
@@ -597,12 +688,16 @@ def _render_filters(df_avail, df_overdue, df_joined):
                 unsafe_allow_html=True,
             )
 
-    # --- Apply filters ---
+    # ==========================================================
+    # Apply filters
+    # ==========================================================
     df = df_joined.copy()
 
+    # 1. CompanyCode
     if "CompanyCode" in df.columns:
         df = df[df["CompanyCode"] == selected_company]
 
+    # 2. Overdue Due Year
     if selected_due_year != "All":
         try:
             due_year_int = int(selected_due_year)
@@ -707,7 +802,7 @@ def _render_filters(df_avail, df_overdue, df_joined):
                         f"Overdue {due_year_int} — "
                         f"no exact Availability data, "
                         f"using nearest year: {matched_avail_year}. "
-                        f"Credit metrics (Util%, Debt) reflect {matched_avail_year} snapshot.",
+                        f"Credit metrics reflect {matched_avail_year} snapshot.",
                     )
             else:
                 st.warning(
@@ -716,16 +811,24 @@ def _render_filters(df_avail, df_overdue, df_joined):
                     f"Credit metrics will show as N/A.",
                 )
 
+    # 3. Risk Tier
     if selected_tier != "All" and "RiskTier" in df.columns:
         df = df[df["RiskTier"] == selected_tier]
 
-    # Customer name filter จาก recommend selectbox
+    # 4. Customer Code filter
+    if selected_code_option != "All codes":
+        try:
+            code_int = int(selected_code_option)
+            if "Customer" in df.columns:
+                df = df[df["Customer"] == code_int]
+        except ValueError:
+            pass
+
+    # 5. Customer Name filter
     if selected_name_option != "All customers":
         for col_search in ("CustomerName", "AVAIL_CUSTOMER_NAME"):
             if col_search in df.columns:
-                df = df[
-                    df[col_search].astype(str) == selected_name_option
-                ]
+                df = df[df[col_search].astype(str) == selected_name_option]
                 break
     elif search_query:
         for col_search in ("CustomerName", "AVAIL_CUSTOMER_NAME"):
@@ -1186,10 +1289,6 @@ def _render_watchlist(df: pd.DataFrame, top_n: int = 20):
 # SECTION 4 — Collection Efficiency Trend (On-time vs Late vs Not Collected)
 # =============================================================================
 def _render_collection_trend(df_overdue: pd.DataFrame, selected_company: str, granularity: str):
-    """
-    Stacked Bar: On-Time | Late | Not Collected — per period.
-    Uses raw df_overdue (pre-join) filtered by CompanyCode.
-    """
     df = df_overdue.copy()
     if "CompanyCode" in df.columns:
         df = df[df["CompanyCode"] == selected_company]
@@ -1198,32 +1297,32 @@ def _render_collection_trend(df_overdue: pd.DataFrame, selected_company: str, gr
         st.info("No collection data available for the selected company.")
         return
 
-    if not all(col in df.columns for col in ("PaidOnTime", "PaidLate", "NotCollected")):
+    required_cols = ("PaidOnTime", "PaidLate", "NotCollected")
+    if not all(col in df.columns for col in required_cols):
         st.info("Payment classification columns not found.")
         return
 
-    # Period label
+    df = df[df["OverdueAmount"] >= 0].copy()
+
     if granularity == "Yearly":
         df["Period"] = df["DueYear"].astype(str)
-        sort_col     = "DueYear"
     elif granularity == "Quarterly":
         df["Period"] = df["DueYear"].astype(str) + "-Q" + df["DueQuarter"].astype(str)
-        sort_col     = ["DueYear", "DueQuarter"]
-    else:  # Monthly
-        df["Period"]    = df["DueYear"].astype(str) + "-" + df["DueMonthLabel"].fillna("")
-        sort_col        = ["DueYear", "DueMonth"]
+    else:
+        df["Period"] = df["DueYear"].astype(str) + "-" + df["DueMonthLabel"].fillna("")
 
-    grp = (
-        df.groupby("Period")
-        .agg(
-            OnTime      =("PaidOnTime",    "sum"),
-            Late        =("PaidLate",      "sum"),
-            NotCollected=("NotCollected",  "sum"),
-        )
-        .reset_index()
-    )
+    has_unknown = "PaidUnknown" in df.columns
 
-    # Sort periods correctly
+    agg_dict = {
+        "OnTime"      : ("PaidOnTime",   "sum"),
+        "Late"        : ("PaidLate",     "sum"),
+        "NotCollected": ("NotCollected", "sum"),
+    }
+    if has_unknown:
+        agg_dict["Unknown"] = ("PaidUnknown", "sum")
+
+    grp = df.groupby("Period").agg(**agg_dict).reset_index()
+
     if granularity == "Monthly":
         grp = grp.merge(
             df[["Period", "DueYear", "DueMonth"]].drop_duplicates(),
@@ -1244,46 +1343,296 @@ def _render_collection_trend(df_overdue: pd.DataFrame, selected_company: str, gr
         ("On-Time",       "OnTime",       PALETTE["jade_lt"]),
         ("Late",          "Late",         PALETTE["amber_lt"]),
         ("Not Collected", "NotCollected", PALETTE["crimson"]),
+        ("Unknown",       "Unknown",      PALETTE["nodata"]),
     ]
     for name, col, color in bar_specs:
         if col not in grp.columns:
             continue
         fig.add_trace(go.Bar(
-            x            = grp["Period"].tolist(),
-            y            = grp[col].tolist(),
-            name         = name,
-            marker_color = color,
-            hovertemplate= f"<b>{name}</b><br>Period: %{{x}}<br>Count: %{{y:,}}<extra></extra>",
+            x=grp["Period"].tolist(),
+            y=grp[col].tolist(),
+            name=name,
+            marker_color=color,
+            hovertemplate=f"<b>{name}</b><br>Period: %{{x}}<br>Count: %{{y:,}}<extra></extra>",
         ))
 
     apply_base_layout(fig, {
         "height":  360,
         "margin":  dict(l=0, r=20, t=30, b=10),
         "barmode": "stack",
-        "title":   dict(
-            text = f"Collection Efficiency — {granularity} View",
-            font = dict(size=10, color=FONT_COLOR), x=0,
+        "title": dict(
+            text=f"Collection Efficiency — {granularity} View",
+            font=dict(size=10, color=FONT_COLOR), x=0,
         ),
         "xaxis": dict(
-            showgrid   = False,
-            color      = FONT_COLOR,
-            tickangle  = -35,
-            tickfont   = dict(size=9),
+            showgrid=False, color=FONT_COLOR,
+            tickangle=-35, tickfont=dict(size=9),
         ),
         "yaxis": dict(
-            title    = "Invoice Count",
-            showgrid = True, gridcolor=GRID_COLOR,
-            color    = FONT_COLOR, tickfont=dict(size=9),
+            title="Invoice Count",
+            showgrid=True, gridcolor=GRID_COLOR,
+            color=FONT_COLOR, tickfont=dict(size=9),
         ),
         "legend": dict(
-            orientation = "h",
-            yanchor     = "bottom", y=1.02,
-            xanchor     = "right",  x=1,
-            font        = dict(size=9),
+            orientation="h",
+            yanchor="bottom", y=1.02,
+            xanchor="right", x=1,
+            font=dict(size=9),
         ),
         "showlegend": True,
     })
     st.plotly_chart(fig, use_container_width=True, key="chart_collection_trend")
+
+
+def _render_collection_pipeline(df_overdue: pd.DataFrame, selected_company: str):
+    df = df_overdue.copy()
+    if "CompanyCode" in df.columns:
+        df = df[df["CompanyCode"] == selected_company]
+
+    total_raw = len(df)
+
+    with st.expander("Pipeline Debug Info", expanded=False):
+        st.markdown(f"- Raw rows (CompanyCode={selected_company}): **{total_raw:,}**")
+        st.markdown(f"- OverdueAmount > 0 (ยังไม่จ่าย): **{int((df['OverdueAmount'] > 0).sum()):,}**")
+        st.markdown(f"- OverdueAmount = 0 (จ่ายแล้ว): **{int((df['OverdueAmount'] == 0).sum()):,}**")
+        st.markdown(f"- OverdueAmount < 0 (Credit Note): **{int((df['OverdueAmount'] < 0).sum()):,}**")
+        if "OriginalDueDate" in df.columns:
+            n_ok = int(df["OriginalDueDate"].notna().sum())
+            st.markdown(f"- OriginalDueDate parsed OK: **{n_ok:,}** | NaT: **{total_raw - n_ok:,}**")
+
+    if "OriginalDueDate" not in df.columns:
+        st.info("No invoice data available for pipeline.")
+        return
+
+    today      = pd.Timestamp("today").normalize()
+    amount_col = "InvoiceAmount" if "InvoiceAmount" in df.columns else "OverdueAmount"
+
+    paid_mask        = df["OverdueAmount"] == 0
+    overdue_mask     = df["OverdueAmount"] > 0
+    credit_note_mask = df["OverdueAmount"] < 0
+    pastdue_mask     = overdue_mask & df["OriginalDueDate"].notna() & (df["OriginalDueDate"] < today)
+    upcoming_mask    = overdue_mask & df["OriginalDueDate"].notna() & (df["OriginalDueDate"] >= today)
+
+    amt_total       = float(df.loc[df["OverdueAmount"] >= 0, amount_col].sum())
+    amt_paid        = float(df.loc[paid_mask,        amount_col].sum())
+    amt_overdue     = float(df.loc[overdue_mask,     amount_col].sum())
+    amt_pastdue     = float(df.loc[pastdue_mask,     amount_col].sum())
+    amt_upcoming    = float(df.loc[upcoming_mask,    amount_col].sum())
+    amt_credit_note = float(df.loc[credit_note_mask, "OverdueAmount"].abs().sum())
+
+    cnt_paid        = int(paid_mask.sum())
+    cnt_overdue     = int(overdue_mask.sum())
+    cnt_pastdue     = int(pastdue_mask.sum())
+    cnt_upcoming    = int(upcoming_mask.sum())
+    cnt_credit_note = int(credit_note_mask.sum())
+    cnt_total       = int((df["OverdueAmount"] >= 0).sum())
+
+    # --- KPI row ---
+    col_kpis = st.columns(4, gap="small")
+    kpi_data = [
+        ("Total Invoices",      f"{amt_total:,.0f}",       f"{cnt_total:,} invoices",                   "info"),
+        ("Paid",                f"{amt_paid:,.0f}",        f"{cnt_paid:,} invoices — OverdueAmount = 0", "safe"),
+        ("Credit Note",         f"{amt_credit_note:,.0f}", f"{cnt_credit_note:,} invoices — Amt < 0",   "warning"),
+        ("Net Overdue (Unpaid)",f"{amt_overdue:,.0f}",     f"{cnt_overdue:,} invoices — Amt > 0",        "danger" if amt_overdue > 0 else "safe"),
+    ]
+    for col, (lbl, val, sub, variant) in zip(col_kpis, kpi_data):
+        with col:
+            st.markdown(_mon_kpi_card(lbl, val, sub, variant), unsafe_allow_html=True)
+
+    st.markdown(
+        "<div style='font-size:0.72rem;color:#8A9BB0;margin-top:6px;margin-bottom:12px'>"
+        "Paid = OverdueAmount = 0 | Credit Note = OverdueAmount &lt; 0 | Net Overdue = OverdueAmount > 0"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    # --- Treemap ---
+    # ใช้ minimum floor size เพื่อให้ segment เล็ก (Credit Note) ยังมองเห็นได้
+    # floor = 3% ของ amt_total หรือค่าจริง แล้วแต่อันไหนมากกว่า
+    floor_pct  = 0.03
+    floor_val  = amt_total * floor_pct
+
+    def _floored(val: float) -> float:
+        return max(val, floor_val) if val > 0 else 0.0
+
+    paid_display        = _floored(amt_paid)
+    overdue_display     = _floored(amt_overdue)
+    credit_note_display = _floored(amt_credit_note)
+
+    # Overdue แบ่งย่อย: Past Due + Upcoming
+    pastdue_display  = _floored(amt_pastdue)
+    upcoming_display = _floored(amt_upcoming)
+
+    labels  = [
+        "Invoice Total",
+        "Paid",
+        "Net Overdue",
+        "Past Original Due",
+        "Upcoming Due",
+        "Credit Note",
+    ]
+    parents = [
+        "",
+        "Invoice Total",
+        "Invoice Total",
+        "Net Overdue",
+        "Net Overdue",
+        "Invoice Total",
+    ]
+    values = [
+        0,                    
+        paid_display,
+        overdue_display,
+        pastdue_display,
+        upcoming_display,
+        credit_note_display,
+    ]
+    real_values = [
+        amt_paid + amt_overdue + amt_credit_note,
+        amt_paid,
+        amt_overdue,
+        amt_pastdue,
+        amt_upcoming,
+        amt_credit_note,
+    ]
+    counts = [
+        cnt_paid + cnt_overdue + cnt_credit_note,
+        cnt_paid,
+        cnt_overdue,
+        cnt_pastdue,
+        cnt_upcoming,
+        cnt_credit_note,
+    ]
+    colors = [
+        PALETTE["sapphire"],
+        PALETTE["jade_lt"],
+        PALETTE["crimson_lt"],
+        PALETTE["crimson"],
+        PALETTE["amber_lt"],
+        PALETTE["amber"],
+    ]
+    pct_of_total = [
+        100.0,
+        (amt_paid / amt_total * 100)        if amt_total > 0 else 0.0,
+        (amt_overdue / amt_total * 100)      if amt_total > 0 else 0.0,
+        (amt_pastdue / amt_overdue * 100)    if amt_overdue > 0 else 0.0,
+        (amt_upcoming / amt_overdue * 100)   if amt_overdue > 0 else 0.0,
+        (amt_credit_note / amt_total * 100)  if amt_total > 0 else 0.0,
+    ]
+
+    customdata = list(zip(real_values, counts, pct_of_total))
+
+    fig = go.Figure(go.Treemap(
+        labels=labels,
+        parents=parents,
+        values=values,
+        customdata=customdata,
+        texttemplate=(
+            "<b>%{label}</b><br>"
+            "%{customdata[0]:,.0f} THB<br>"
+            "%{customdata[2]:.1f}%"
+        ),
+        hovertemplate=(
+            "<b>%{label}</b><br>"
+            "Amount  : %{customdata[0]:,.0f} THB<br>"
+            "Invoices: %{customdata[1]:,}<br>"
+            "Share   : %{customdata[2]:.1f}%"
+            "<extra></extra>"
+        ),
+        marker=dict(
+            colors=colors,
+            line=dict(width=2, color="white"),
+        ),
+        textfont=dict(size=11, color="white", family="Inter, sans-serif"),
+        tiling=dict(packing="squarify", pad=4),
+    ))
+
+    fig.update_layout(
+        height=420,
+        margin=dict(l=0, r=0, t=40, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color=FONT_COLOR, family="Inter, sans-serif", size=10),
+        title=dict(
+            text=(
+                "Collection Pipeline — Invoice Status Treemap<br>"
+                "<sup style='font-size:9px;color:#8A9BB0'>"
+                "Segment เล็กถูก scale ขึ้น 3% floor เพื่อให้มองเห็น — hover ดูตัวเลขจริง"
+                "</sup>"
+            ),
+            font=dict(size=10, color=FONT_COLOR), x=0,
+        ),
+    )
+
+    col_chart, col_info = st.columns([7, 3], gap="medium")
+
+    with col_chart:
+        st.plotly_chart(fig, use_container_width=True, key="chart_collection_pipeline")
+
+    with col_info:
+        paid_pct     = (amt_paid / amt_total * 100)        if amt_total > 0 else 0.0
+        cn_pct       = (amt_credit_note / amt_total * 100)  if amt_total > 0 else 0.0
+        ov_pct       = (amt_overdue / amt_total * 100)      if amt_total > 0 else 0.0
+        past_pct     = (amt_pastdue / amt_overdue * 100)    if amt_overdue > 0 else 0.0
+        upcoming_pct = (amt_upcoming / amt_overdue * 100)   if amt_overdue > 0 else 0.0
+
+        st.markdown(
+            "<div style='padding:12px 14px;background:#f7f9fc;"
+            "border-radius:8px;border:1px solid #d0dae6'>"
+
+            "<div style='font-size:0.72rem;font-weight:700;color:#1B4F8A;"
+            "text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px'>"
+            "How to Read</div>"
+
+            "<div style='font-size:0.73rem;color:#3D5166;margin-bottom:10px'>"
+            "พื้นที่ = สัดส่วนของยอด<br>"
+            "segment เล็กถูก scale ขึ้นเล็กน้อย<br>"
+            "เพื่อให้มองเห็น — ดูตัวเลขจริงจาก hover</div>"
+
+            "<div style='border-top:1px solid #d0dae6;padding-top:8px;"
+            "font-size:0.73rem;color:#3D5166;margin-bottom:6px'>"
+            "<b>Breakdown (ตัวเลขจริง)</b></div>"
+
+            f"<div style='font-size:0.72rem;color:#1A7A4A;margin-bottom:4px'>"
+            f"Paid<br>"
+            f"{amt_paid:,.0f} THB ({paid_pct:.1f}%)<br>"
+            f"{cnt_paid:,} invoices</div>"
+
+            f"<div style='font-size:0.72rem;color:#A01F2D;margin-bottom:2px'>"
+            f"Net Overdue<br>"
+            f"{amt_overdue:,.0f} THB ({ov_pct:.1f}%)<br>"
+            f"{cnt_overdue:,} invoices</div>"
+
+            f"<div style='font-size:0.72rem;color:#E8A838;margin-bottom:2px;padding-left:8px'>"
+            f"— Upcoming Due (ยังไม่เกินกำหนด)<br>"
+            f"&nbsp;&nbsp;{amt_upcoming:,.0f} THB ({upcoming_pct:.1f}%) | {cnt_upcoming:,} inv</div>"
+
+            f"<div style='font-size:0.72rem;color:#A01F2D;margin-bottom:6px;padding-left:8px'>"
+            f"— Past Due (เกินกำหนดแล้ว)<br>"
+            f"&nbsp;&nbsp;{amt_pastdue:,.0f} THB ({past_pct:.1f}%) | {cnt_pastdue:,} inv</div>"
+
+            f"<div style='font-size:0.72rem;color:#B5620A;margin-bottom:10px'>"
+            f"Credit Note<br>"
+            f"{amt_credit_note:,.0f} THB ({cn_pct:.1f}%) | {cnt_credit_note:,} invoices</div>"
+
+            "<div style='border-top:1px solid #d0dae6;padding-top:8px;"
+            "font-size:0.72rem;color:#3D5166'>"
+            "<b>Variables</b><br>"
+            "OverdueAmount, OriginalDueDate,<br>"
+            "InvoiceAmount"
+            "</div>"
+
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        "<div style='font-size:0.72rem;color:#8A9BB0;margin-top:4px'>"
+        "Treemap: พื้นที่สะท้อนสัดส่วนยอดเงิน | "
+        "Credit Note และ segment เล็กถูก scale ขึ้น 3% floor เพื่อให้มองเห็น | "
+        "hover เพื่อดูตัวเลขจริง"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def _render_ontime_delay_trend(
@@ -1842,260 +2191,212 @@ def _render_joined_table(df: pd.DataFrame):
                  hide_index=True, column_config=col_config)
 
 
-def _render_collection_pipeline(df_overdue: pd.DataFrame, selected_company: str):
-    df = df_overdue.copy()
-    if "CompanyCode" in df.columns:
-        df = df[df["CompanyCode"] == selected_company]
-
-    total_raw = len(df)
-
-    with st.expander("Pipeline Debug Info", expanded=False):
-        st.markdown(f"- Raw rows (CompanyCode={selected_company}): **{total_raw:,}**")
-        st.markdown(f"- OverdueAmount > 0 (ยังไม่จ่าย): **{int((df['OverdueAmount'] > 0).sum()):,}**")
-        st.markdown(f"- OverdueAmount = 0 (จ่ายแล้ว): **{int((df['OverdueAmount'] == 0).sum()):,}**")
-        st.markdown(f"- OverdueAmount < 0 (Credit Note): **{int((df['OverdueAmount'] < 0).sum()):,}**")
-        if "OriginalDueDate" in df.columns:
-            n_ok = int(df["OriginalDueDate"].notna().sum())
-            st.markdown(f"- OriginalDueDate parsed OK: **{n_ok:,}** | NaT: **{total_raw - n_ok:,}**")
-        if "CustomerDueDate" in df.columns:
-            n_cok = int(df["CustomerDueDate"].notna().sum())
-            st.markdown(f"- CustomerDueDate parsed OK: **{n_cok:,}** | NaT: **{total_raw - n_cok:,}**")
-        if "CollectionDate" in df.columns:
-            n_col = int(df["CollectionDate"].notna().sum())
-            st.markdown(f"- CollectionDate (planned) not-null: **{n_col:,}**")
-
-    if "OriginalDueDate" not in df.columns:
-        st.info("No invoice data available for pipeline.")
-        return
-
-    today      = pd.Timestamp("today").normalize()
-    amount_col = "InvoiceAmount" if "InvoiceAmount" in df.columns else "OverdueAmount"
-
-    # --- classify ตาม OverdueAmount และ OriginalDueDate ---
-    # paid = OverdueAmount == 0
-    paid_mask     = df["OverdueAmount"] == 0
-    # unpaid = OverdueAmount > 0
-    unpaid_mask   = df["OverdueAmount"] > 0
-    # upcoming = unpaid & OriginalDueDate >= today
-    upcoming_mask = unpaid_mask & df["OriginalDueDate"].notna() & (df["OriginalDueDate"] >= today)
-    # overdue = unpaid & OriginalDueDate < today
-    overdue_mask  = unpaid_mask & df["OriginalDueDate"].notna() & (df["OriginalDueDate"] < today)
-    # extended = unpaid & CollectionDate > OriginalDueDate
-    has_ext_mask  = (
-        unpaid_mask
-        & df["CollectionDate"].notna()
-        & df["OriginalDueDate"].notna()
-        & (df["CollectionDate"] > df["OriginalDueDate"])
-    )
-
-    amt_upcoming = float(df.loc[upcoming_mask, amount_col].sum())
-    amt_overdue  = float(df.loc[overdue_mask,  amount_col].sum())
-    amt_paid     = float(df.loc[paid_mask,     amount_col].sum())
-    amt_extended = float(df.loc[has_ext_mask,  amount_col].sum())
-    cnt_upcoming = int(upcoming_mask.sum())
-    cnt_overdue  = int(overdue_mask.sum())
-    cnt_paid     = int(paid_mask.sum())
-    cnt_extended = int(has_ext_mask.sum())
-
-    col_kpis = st.columns(4, gap="small")
-    kpi_data = [
-        ("Upcoming Due",   f"{amt_upcoming:,.0f}",  f"{cnt_upcoming:,} invoices — due >= today",    "info"),
-        ("Overdue Now",    f"{amt_overdue:,.0f}",   f"{cnt_overdue:,} invoices — past OriginalDue", "danger" if amt_overdue > 0 else "safe"),
-        ("Extended",       f"{amt_extended:,.0f}",  f"{cnt_extended:,} invoices — CollectionDate > OriginalDue", "warning"),
-        ("Paid",           f"{amt_paid:,.0f}",      f"{cnt_paid:,} invoices — OverdueAmount = 0",  "safe"),
-    ]
-    for col, (lbl, val, sub, variant) in zip(col_kpis, kpi_data):
-        with col:
-            st.markdown(_mon_kpi_card(lbl, val, sub, variant), unsafe_allow_html=True)
-
-    st.markdown(
-        "<div style='font-size:0.72rem;color:#8A9BB0;margin-top:6px;margin-bottom:10px'>"
-        "Paid = OverdueAmount = 0 | Overdue = OverdueAmount > 0 & past OriginalDueDate | "
-        "Extended = CollectionDate > OriginalDueDate (planned extension)"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-    total_amt = amt_upcoming + amt_overdue + amt_extended + amt_paid
-    if total_amt == 0:
-        st.info("No amount data to display in pipeline funnel.")
-        return
-
-    stages = [
-        ("Invoice Issued",       total_amt,                                 cnt_upcoming + cnt_overdue + cnt_extended + cnt_paid, PALETTE["sapphire"]),
-        ("Original Due",         amt_upcoming + amt_overdue + amt_extended, cnt_upcoming + cnt_overdue + cnt_extended,            PALETTE["sapphire_lt"]),
-        ("Extended (Planned)",   amt_upcoming + amt_extended,               cnt_upcoming + cnt_extended,                         PALETTE["amber"]),
-        ("Paid (Overdue = 0)",   amt_paid,                                  cnt_paid,                                            PALETTE["jade_lt"]),
-    ]
-
-    fig = go.Figure(go.Funnel(
-        y=[s[0] for s in stages],
-        x=[s[1] for s in stages],
-        textinfo="value+percent initial",
-        texttemplate=[
-            f"{s[0]}<br>{s[1]:,.0f} THB<br>{s[2]:,} invoices"
-            for s in stages
-        ],
-        marker=dict(color=[s[3] for s in stages]),
-        connector=dict(line=dict(color="#d0dae6", width=1)),
-        hovertemplate="<b>%{y}</b><br>Amount: %{x:,.0f} THB<extra></extra>",
-    ))
-    fig.update_layout(
-        height=340,
-        margin=dict(l=0, r=0, t=30, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color=FONT_COLOR, family="Inter, sans-serif", size=10),
-        title=dict(
-            text="Collection Pipeline — Invoice Flow (THB)",
-            font=dict(size=10, color=FONT_COLOR), x=0,
-        ),
-    )
-    st.plotly_chart(fig, use_container_width=True, key="chart_collection_pipeline")
-
-    if amt_overdue > 0 or amt_extended > 0:
-        bottleneck_amt   = max(amt_overdue, amt_extended)
-        bottleneck_label = "Overdue (past OriginalDueDate)" if amt_overdue >= amt_extended else "Extended (CollectionDate > OriginalDueDate)"
-        st.markdown(
-            f"<div style='font-size:0.80rem;color:{PALETTE['amber']};font-weight:600;margin-top:4px'>"
-            f"Bottleneck: {bottleneck_label} — {bottleneck_amt:,.0f} THB</div>",
-            unsafe_allow_html=True,
-        )
-
-
 def _render_cash_inflow_forecast(df_overdue: pd.DataFrame, selected_company: str):
     df = df_overdue.copy()
     if "CompanyCode" in df.columns:
         df = df[df["CompanyCode"] == selected_company]
 
-    total_raw = len(df)
-
     with st.expander("Cash Inflow Debug Info", expanded=False):
-        st.markdown(f"- Rows after CompanyCode filter: **{total_raw:,}**")
-        if "CollectionDate" in df.columns:
-            n_col = int(df["CollectionDate"].notna().sum())
-            today_debug = pd.Timestamp("today").normalize()
-            n_future = int((df["CollectionDate"].notna() & (df["CollectionDate"] >= today_debug)).sum())
-            st.markdown(f"- CollectionDate (planned) not-null: **{n_col:,}**")
-            st.markdown(f"- Future planned CollectionDate (>= today): **{n_future:,}**")
-        amount_col_debug = "InvoiceAmount" if "InvoiceAmount" in df.columns else "OverdueAmount"
-        st.markdown(f"- Amount column: **{amount_col_debug}** (Invoice Amount)")
-
-    if "CollectionDate" not in df.columns:
-        st.info("CollectionDate column not found.")
-        return
+        st.markdown(f"- Rows after CompanyCode filter: **{len(df):,}**")
+        for dc in ("CollectionDate", "OriginalDueDate", "CustomerDueDate"):
+            if dc in df.columns:
+                n = int(df[dc].notna().sum())
+                st.markdown(f"- {dc} not-null: **{n:,}**")
+        amount_col_d = "InvoiceAmount" if "InvoiceAmount" in df.columns else "OverdueAmount"
+        st.markdown(f"- Amount column: **{amount_col_d}**")
 
     amount_col = "InvoiceAmount" if "InvoiceAmount" in df.columns else "OverdueAmount"
     today      = pd.Timestamp("today").normalize()
 
-    hc1, _ = st.columns([1, 4])
-    with hc1:
+    # --- Controls row ---
+    c1, c2 = st.columns([1, 1])
+    with c1:
         horizon = st.selectbox(
             "Forecast Horizon",
             options=["7 days", "14 days", "30 days", "60 days", "90 days", "120 days"],
             index=2,
             key="cif_horizon",
+            label_visibility="visible",
         )
+    with c2:
+        date_col_options = []
+        date_col_labels  = []
+        for dc, lbl in [
+            ("CollectionDate",  "CollectionDate (planned extension)"),
+            ("OriginalDueDate", "OriginalDueDate (original due)"),
+            ("CustomerDueDate", "CustomerDueDate (customer confirm)"),
+        ]:
+            if dc in df.columns:
+                date_col_options.append(dc)
+                date_col_labels.append(lbl)
+
+        selected_date_col = st.selectbox(
+            "Based on",
+            options=date_col_options,
+            format_func=lambda x: dict(zip(date_col_options, date_col_labels)).get(x, x),
+            index=0,
+            key="cif_date_col",
+            label_visibility="visible",
+        )
+
     horizon_days = int(horizon.split()[0])
     cutoff = today + pd.Timedelta(days=horizon_days)
 
-    # filter: CollectionDate (planned) อยู่ในอนาคต และ InvoiceAmount > 0
+    if selected_date_col not in df.columns:
+        st.info(f"{selected_date_col} not available.")
+        return
+
     df_future = df[
-        df["CollectionDate"].notna()
-        & (df["CollectionDate"] >= today)
-        & (df["CollectionDate"] <= cutoff)
+        df[selected_date_col].notna()
+        & (df[selected_date_col] >= today)
+        & (df[selected_date_col] <= cutoff)
         & (df[amount_col] > 0)
     ].copy()
 
     if df_future.empty:
         st.info(
-            f"No planned CollectionDate within next {horizon_days} days "
+            f"No data for {selected_date_col} within next {horizon_days} days "
             f"(up to {cutoff.strftime('%d %b %Y')})."
         )
         return
 
-    df_future["WeekStart"] = df_future["CollectionDate"].apply(
+    df_future["WeekNum"] = df_future[selected_date_col].apply(
+        lambda d: int((d - today).days // 7) + 1 if pd.notna(d) else None
+    )
+    df_future["WeekStart"] = df_future[selected_date_col].apply(
         lambda d: today + pd.Timedelta(days=(int((d - today).days // 7)) * 7)
         if pd.notna(d) else pd.NaT
     )
-    df_future["WeekLabel"] = df_future["CollectionDate"].apply(
-        lambda d: f"Week {int((d - today).days // 7) + 1}" if pd.notna(d) else "Unknown"
+    df_future["WeekEnd"]   = df_future["WeekStart"] + pd.Timedelta(days=6)
+    df_future["WeekLabel"] = df_future["WeekNum"].apply(
+        lambda w: f"Week {w}" if pd.notna(w) else "Unknown"
     )
 
     weekly = (
-        df_future.groupby(["WeekStart", "WeekLabel"])
+        df_future.groupby(["WeekNum", "WeekStart", "WeekEnd", "WeekLabel"])
         .agg(Amount=(amount_col, "sum"), Invoices=(amount_col, "count"))
         .reset_index()
-        .sort_values("WeekStart")
+        .sort_values("WeekNum")
     )
 
+    if weekly.empty:
+        st.info("No weekly data.")
+        return
+
     total_forecast = float(weekly["Amount"].sum())
-    peak_week      = weekly.loc[weekly["Amount"].idxmax(), "WeekLabel"]
+    peak_week      = weekly.loc[weekly["Amount"].idxmax(),   "WeekLabel"]
     trough_week    = weekly.loc[weekly["Amount"].idxmin(), "WeekLabel"]
 
     k1, k2, k3 = st.columns(3, gap="small")
     for col, lbl, val, sub, variant in [
-        (k1, "Total Planned Inflow",  f"{total_forecast:,.0f}", f"Next {horizon_days} days — Invoice Amount (THB)", "info"),
-        (k2, "Peak Week",              peak_week,               "Highest planned inflow",                           "safe"),
-        (k3, "Trough Week",            trough_week,             "Lowest planned inflow",                            "warning"),
+        (k1, "Total Planned Inflow", f"{total_forecast:,.0f}", f"Next {horizon_days} days — Invoice Amount (THB)", "info"),
+        (k2, "Peak Week",             peak_week,               "Highest planned inflow",                           "safe"),
+        (k3, "Trough Week",           trough_week,             "Lowest planned inflow",                            "warning"),
     ]:
         with col:
             st.markdown(_mon_kpi_card(lbl, val, sub, variant), unsafe_allow_html=True)
 
     st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
 
+    weekly["MonthYear"] = weekly["WeekStart"].dt.strftime("%b %Y")
+    weekly["WeekIdx"]   = range(len(weekly))
+
+    month_bands = []
+    current_month = None
+    band_start    = 0
+    for _, row in weekly.iterrows():
+        m = row["MonthYear"]
+        i = row["WeekIdx"]
+        if m != current_month:
+            if current_month is not None:
+                month_bands.append({"month": current_month, "start": band_start, "end": i - 1})
+            current_month = m
+            band_start    = i
+    if current_month is not None:
+        month_bands.append({"month": current_month, "start": band_start, "end": len(weekly) - 1})
+
+    x_labels       = weekly["WeekLabel"].tolist()
+    band_colors_alt = ["rgba(27,79,138,0.07)", "rgba(27,79,138,0.02)"]
+
     fig = go.Figure()
+
+    for i, band in enumerate(month_bands):
+        x0 = x_labels[band["start"]]
+        x1 = x_labels[band["end"]]
+        fig.add_vrect(x0=x0, x1=x1, fillcolor=band_colors_alt[i % 2], line_width=0, layer="below")
+        mid_label = x_labels[(band["start"] + band["end"]) // 2]
+        fig.add_annotation(
+            x=mid_label, y=1.02, yref="paper",
+            text=f"<b>{band['month']}</b>",
+            showarrow=False,
+            font=dict(size=8, color="#5a6a7a"),
+            xanchor="center", yanchor="bottom",
+        )
+
     fig.add_trace(go.Scatter(
-        x=weekly["WeekLabel"].tolist(), y=weekly["Amount"].tolist(),
+        x=x_labels, y=weekly["Amount"].tolist(),
         mode="none", fill="tozeroy",
-        fillcolor="rgba(58,123,213,0.08)",
+        fillcolor="rgba(58,123,213,0.07)",
         showlegend=False, hoverinfo="skip",
     ))
 
+    avg_val = float(weekly["Amount"].mean())
     point_colors = [
-        PALETTE["jade_lt"] if v >= weekly["Amount"].mean() else PALETTE["sapphire_lt"]
+        PALETTE["jade_lt"] if v >= avg_val else PALETTE["sapphire_lt"]
         for v in weekly["Amount"]
     ]
     fig.add_trace(go.Scatter(
-        x=weekly["WeekLabel"].tolist(),
+        x=x_labels,
         y=weekly["Amount"].tolist(),
         mode="lines+markers",
         name="Planned Cash Inflow",
-        line=dict(color=PALETTE["sapphire_lt"], width=2.5, shape="spline", smoothing=0.8),
-        marker=dict(size=9, color=point_colors, line=dict(color="white", width=2)),
-        customdata=list(zip(weekly["Amount"].tolist(), weekly["Invoices"].tolist())),
+        line=dict(color=PALETTE["sapphire_lt"], width=2.5, shape="spline", smoothing=0.7),
+        marker=dict(size=8, color=point_colors, line=dict(color="white", width=2)),
+        customdata=list(zip(
+            weekly["Amount"].tolist(),
+            weekly["Invoices"].tolist(),
+            weekly["WeekStart"].dt.strftime("%d %b %Y").tolist(),
+            weekly["WeekEnd"].dt.strftime("%d %b %Y").tolist(),
+            weekly["MonthYear"].tolist(),
+        )),
         hovertemplate=(
-            "<b>%{x}</b><br>"
-            "Planned Inflow (Invoice Amt) : %{customdata[0]:,.0f} THB<br>"
-            "Invoices                     : %{customdata[1]:,}"
+            "<b>%{x}</b> — %{customdata[4]}<br>"
+            "%{customdata[2]} to %{customdata[3]}<br>"
+            "Planned Inflow : %{customdata[0]:,.0f} THB<br>"
+            "Invoices       : %{customdata[1]:,}"
             "<extra></extra>"
         ),
     ))
 
-    avg_line = float(weekly["Amount"].mean())
     fig.add_hline(
-        y=avg_line,
-        line_dash="dot", line_color="#aaaaaa", line_width=1,
-        annotation_text=f"Avg {avg_line:,.0f}",
-        annotation_font=dict(size=8, color="#777777"),
+        y=avg_val,
+        line_dash="dot", line_color="#cccccc", line_width=1,
+        annotation_text=f"Avg {avg_val:,.0f}",
+        annotation_font=dict(size=8, color="#999999"),
+        annotation_position="bottom right",
     )
 
     apply_base_layout(fig, {
-        "height": 340,
-        "margin": dict(l=0, r=20, t=40, b=20),
+        "height": 400,
+        "margin": dict(l=0, r=20, t=50, b=20),
         "title": dict(
             text=(
-                f"Planned Cash Inflow — Invoice Amount (THB) | "
+                f"Cash Inflow Planning — Invoice Amount (THB) | "
                 f"Next {horizon_days} days "
                 f"({today.strftime('%d %b %Y')} → {cutoff.strftime('%d %b %Y')})"
             ),
             font=dict(size=10, color=FONT_COLOR), x=0,
         ),
-        "xaxis": dict(showgrid=False, color=FONT_COLOR, tickfont=dict(size=10)),
+        "xaxis": dict(
+            showgrid=False, color=FONT_COLOR,
+            tickfont=dict(size=9), tickangle=-35,
+            type="category",
+        ),
         "yaxis": dict(
             title="Invoice Amount (THB)",
             showgrid=True, gridcolor=GRID_COLOR,
-            color=FONT_COLOR, tickfont=dict(size=9), rangemode="tozero",
+            color=FONT_COLOR, tickfont=dict(size=9),
+            rangemode="tozero",
         ),
         "showlegend": False,
     })
@@ -2103,9 +2404,9 @@ def _render_cash_inflow_forecast(df_overdue: pd.DataFrame, selected_company: str
 
     st.markdown(
         f"<div style='font-size:0.75rem;color:#8A9BB0;margin-top:2px'>"
-        f"Planned collection based on CollectionDate (planned extension date) | "
+        f"Based on {selected_date_col} | "
         f"Amount = Invoice Amount | "
-        f"Horizon = {today.strftime('%d %b %Y')} to {cutoff.strftime('%d %b %Y')}"
+        f"Horizon: {today.strftime('%d %b %Y')} → {cutoff.strftime('%d %b %Y')}"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -2116,63 +2417,82 @@ def _render_future_collection_forecast(df_overdue: pd.DataFrame, selected_compan
     if "CompanyCode" in df.columns:
         df = df[df["CompanyCode"] == selected_company]
 
-    total_raw = len(df)
+    with st.expander("Collection Planning Debug Info", expanded=False):
+        st.markdown(f"- Rows after CompanyCode filter: **{len(df):,}**")
+        st.markdown(f"- OverdueAmount > 0: **{int((df['OverdueAmount'] > 0).sum()):,}** rows")
+        for dc in ("CollectionDate", "OriginalDueDate", "CustomerDueDate"):
+            if dc in df.columns:
+                n = int(df[dc].notna().sum())
+                st.markdown(f"- {dc} not-null: **{n:,}**")
 
-    with st.expander("Future Forecast Debug Info", expanded=False):
-        st.markdown(f"- Rows after CompanyCode filter: **{total_raw:,}**")
-        st.markdown(f"- OverdueAmount > 0 (ยังไม่จ่าย): **{int((df['OverdueAmount'] > 0).sum()):,}** rows")
-        if "CollectionDate" in df.columns:
-            today_debug = pd.Timestamp("today").normalize()
-            n_future = int(
-                (df["CollectionDate"].notna()
-                 & (df["CollectionDate"] >= today_debug)
-                 & (df["OverdueAmount"] > 0)).sum()
-            )
-            st.markdown(f"- Planned CollectionDate future + OverdueAmount > 0: **{n_future:,}** rows")
-
-    if "CollectionDate" not in df.columns or "OverdueAmount" not in df.columns:
-        st.info("CollectionDate or OverdueAmount not found.")
+    if "OverdueAmount" not in df.columns:
+        st.info("OverdueAmount not found.")
         return
 
     today = pd.Timestamp("today").normalize()
 
-    fc1, _ = st.columns([1, 4])
-    with fc1:
+    c1, c2 = st.columns([1, 1])
+    with c1:
         horizon = st.selectbox(
             "Horizon (days)",
             options=["7", "14", "30", "60", "90", "120"],
             index=2,
             key="fcf_horizon",
+            label_visibility="visible",
         )
+    with c2:
+        date_col_options = []
+        date_col_labels  = []
+        for dc, lbl in [
+            ("CollectionDate",  "CollectionDate (planned extension)"),
+            ("OriginalDueDate", "OriginalDueDate (original due)"),
+            ("CustomerDueDate", "CustomerDueDate (customer confirm)"),
+        ]:
+            if dc in df.columns:
+                date_col_options.append(dc)
+                date_col_labels.append(lbl)
+
+        selected_date_col = st.selectbox(
+            "Based on",
+            options=date_col_options,
+            format_func=lambda x: dict(zip(date_col_options, date_col_labels)).get(x, x),
+            index=0,
+            key="fcf_date_col",
+            label_visibility="visible",
+        )
+
     horizon_days = int(horizon)
     cutoff = today + pd.Timedelta(days=horizon_days)
 
-    # filter: OverdueAmount > 0 (ยังไม่จ่าย) และ CollectionDate (planned) อยู่ในอนาคต
+    if selected_date_col not in df.columns:
+        st.info(f"{selected_date_col} not available.")
+        return
+
     df_plan = df[
-        df["CollectionDate"].notna()
-        & (df["CollectionDate"] >= today)
-        & (df["CollectionDate"] <= cutoff)
+        df[selected_date_col].notna()
+        & (df[selected_date_col] >= today)
+        & (df[selected_date_col] <= cutoff)
         & (df["OverdueAmount"] > 0)
     ].copy()
 
     if df_plan.empty:
         st.info(
-            f"No unpaid invoices (OverdueAmount > 0) with planned CollectionDate "
+            f"No unpaid invoices (OverdueAmount > 0) with {selected_date_col} "
             f"within next {horizon_days} days "
             f"(up to {cutoff.strftime('%d %b %Y')})."
         )
         return
 
     daily = (
-        df_plan.groupby("CollectionDate")
+        df_plan.groupby(selected_date_col)
         .agg(Amount=("OverdueAmount", "sum"), Invoices=("OverdueAmount", "count"))
         .reset_index()
-        .sort_values("CollectionDate")
+        .sort_values(selected_date_col)
     )
     daily["Cumulative"] = daily["Amount"].cumsum()
 
     def _sum_horizon(d):
-        return float(daily[daily["CollectionDate"] <= today + pd.Timedelta(days=d)]["Amount"].sum())
+        return float(daily[daily[selected_date_col] <= today + pd.Timedelta(days=d)]["Amount"].sum())
 
     next7  = _sum_horizon(7)
     next14 = _sum_horizon(14)
@@ -2181,10 +2501,10 @@ def _render_future_collection_forecast(df_overdue: pd.DataFrame, selected_compan
 
     k1, k2, k3, k4 = st.columns(4, gap="small")
     for col, lbl, val, sub in [
-        (k1, "Next 7 Days",          f"{next7:,.0f}",  "Overdue Amount (THB) — planned"),
-        (k2, "Next 14 Days",         f"{next14:,.0f}", "Overdue Amount (THB) — planned"),
-        (k3, "Next 30 Days",         f"{next30:,.0f}", "Overdue Amount (THB) — planned"),
-        (k4, f"Total ({horizon}d)",  f"{total:,.0f}",  "Overdue Amount (THB) — planned"),
+        (k1, "Next 7 Days",         f"{next7:,.0f}",  "Overdue Amount (THB)"),
+        (k2, "Next 14 Days",        f"{next14:,.0f}", "Overdue Amount (THB)"),
+        (k3, "Next 30 Days",        f"{next30:,.0f}", "Overdue Amount (THB)"),
+        (k4, f"Total ({horizon}d)", f"{total:,.0f}",  "Overdue Amount (THB)"),
     ]:
         with col:
             st.markdown(_mon_kpi_card(lbl, val, sub, "info"), unsafe_allow_html=True)
@@ -2193,21 +2513,21 @@ def _render_future_collection_forecast(df_overdue: pd.DataFrame, selected_compan
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=daily["CollectionDate"].dt.strftime("%b %d").tolist(),
+        x=daily[selected_date_col].dt.strftime("%b %d").tolist(),
         y=daily["Amount"].tolist(),
         name="Daily Overdue Amount",
         marker_color=PALETTE["sapphire_lt"],
         opacity=0.6,
         hovertemplate=(
             "<b>%{x}</b><br>"
-            "Planned Collect : %{y:,.0f} THB (Overdue Amt)<br>"
+            "Planned Collect : %{y:,.0f} THB<br>"
             "<extra></extra>"
         ),
     ))
     fig.add_trace(go.Scatter(
-        x=daily["CollectionDate"].dt.strftime("%b %d").tolist(),
+        x=daily[selected_date_col].dt.strftime("%b %d").tolist(),
         y=daily["Cumulative"].tolist(),
-        name="Cumulative Overdue Amount",
+        name="Cumulative",
         mode="lines+markers",
         yaxis="y2",
         line=dict(color=PALETTE["jade_lt"], width=2),
@@ -2225,7 +2545,7 @@ def _render_future_collection_forecast(df_overdue: pd.DataFrame, selected_compan
         "barmode": "overlay",
         "title": dict(
             text=(
-                f"Planned Collection — Overdue Amount (THB) | "
+                f"Collection Planning — Overdue Amount (THB) | "
                 f"Next {horizon_days} days "
                 f"({today.strftime('%d %b %Y')} → {cutoff.strftime('%d %b %Y')})"
             ),
@@ -2241,7 +2561,7 @@ def _render_future_collection_forecast(df_overdue: pd.DataFrame, selected_compan
             color=FONT_COLOR, tickfont=dict(size=9),
         ),
         "yaxis2": dict(
-            title="Cumulative Overdue Amount (THB)",
+            title="Cumulative (THB)",
             overlaying="y", side="right",
             showgrid=False,
             color=PALETTE["jade_lt"], tickfont=dict(size=9),
@@ -2256,7 +2576,7 @@ def _render_future_collection_forecast(df_overdue: pd.DataFrame, selected_compan
 
     st.markdown(
         f"<div style='font-size:0.75rem;color:#8A9BB0;margin-top:2px'>"
-        f"Planned based on CollectionDate (planned extension) | "
+        f"Based on {selected_date_col} (planned extension) | "
         f"Only unpaid invoices (OverdueAmount > 0) | "
         f"Horizon: {today.strftime('%d %b %Y')} → {cutoff.strftime('%d %b %Y')}"
         f"</div>",
@@ -3316,6 +3636,11 @@ def run_credit_moni_logging(
 
     logger.info("")
 
+    try:
+        _log_paid_classification(logger, df_overdue, selected_company)
+    except Exception as e:
+        logger.error(f"_log_paid_classification error: {e}")
+
     # =========================================================
     # Sections
     # =========================================================
@@ -3358,3 +3683,122 @@ def run_credit_moni_logging(
     for h in logger.handlers:
         h.flush()
         h.close()
+
+
+def _log_paid_classification(logger: logging.Logger, df_overdue: pd.DataFrame, selected_company: str):
+    logger.info("=" * 70)
+    logger.info("SECTION: PaidOnTime / PaidLate / NotCollected Classification Debug")
+    logger.info("=" * 70)
+
+    df = df_overdue.copy()
+    if "CompanyCode" in df.columns:
+        df = df[df["CompanyCode"] == selected_company]
+        logger.info(f"CompanyCode filter: {selected_company} → {len(df)} rows")
+
+    # --- column availability ---
+    for col in ("OverdueAmount", "OriginalDueDate", "CollectionDate",
+                "CustomerDueDate", "IsPaid", "PaidOnTime", "PaidLate", "NotCollected"):
+        present = col in df.columns
+        logger.info(f"Column '{col}' present: {present}")
+
+    logger.info("")
+
+    # --- IsPaid breakdown ---
+    if "IsPaid" in df.columns:
+        n_paid   = int(df["IsPaid"].sum())
+        n_unpaid = len(df) - n_paid
+        logger.info(f"IsPaid = True  (OverdueAmount == 0): {n_paid:,} rows")
+        logger.info(f"IsPaid = False (OverdueAmount != 0): {n_unpaid:,} rows")
+    logger.info("")
+
+    # --- PaidOnTime ---
+    if "PaidOnTime" in df.columns:
+        n_ontime = int(df["PaidOnTime"].sum())
+        logger.info(f"PaidOnTime = True: {n_ontime:,} rows")
+
+        if n_ontime > 0 and "CollectionDate" in df.columns and "OriginalDueDate" in df.columns:
+            sample = df[df["PaidOnTime"]].head(5)
+            logger.info("Sample PaidOnTime rows:")
+            for _, row in sample.iterrows():
+                logger.info(
+                    f"  Customer={row.get('Customer')} | "
+                    f"OriginalDueDate={row.get('OriginalDueDate')} | "
+                    f"CollectionDate={row.get('CollectionDate')} | "
+                    f"CustomerDueDate={row.get('CustomerDueDate')} | "
+                    f"OverdueAmount={row.get('OverdueAmount')}"
+                )
+        elif n_ontime == 0:
+            logger.warning("PaidOnTime = 0 rows — ไม่มี invoice ที่จ่ายตรงเวลาเลย")
+    logger.info("")
+
+    # --- PaidLate ---
+    if "PaidLate" in df.columns:
+        n_late = int(df["PaidLate"].sum())
+        logger.info(f"PaidLate = True: {n_late:,} rows")
+
+        if n_late > 0 and "CollectionDate" in df.columns and "OriginalDueDate" in df.columns:
+            sample = df[df["PaidLate"]].head(5)
+            logger.info("Sample PaidLate rows:")
+            for _, row in sample.iterrows():
+                coll = row.get("CollectionDate")
+                orig = row.get("OriginalDueDate")
+                diff = (coll - orig).days if pd.notna(coll) and pd.notna(orig) else "N/A"
+                logger.info(
+                    f"  Customer={row.get('Customer')} | "
+                    f"OriginalDueDate={orig} | "
+                    f"CollectionDate={coll} | "
+                    f"Diff={diff} days | "
+                    f"OverdueAmount={row.get('OverdueAmount')}"
+                )
+    logger.info("")
+
+    # --- NotCollected ---
+    if "NotCollected" in df.columns:
+        n_notcoll = int(df["NotCollected"].sum())
+        logger.info(f"NotCollected = True (OverdueAmount > 0): {n_notcoll:,} rows")
+
+        if n_notcoll > 0:
+            sample = df[df["NotCollected"]].head(5)
+            logger.info("Sample NotCollected rows:")
+            for _, row in sample.iterrows():
+                logger.info(
+                    f"  Customer={row.get('Customer')} | "
+                    f"OriginalDueDate={row.get('OriginalDueDate')} | "
+                    f"CollectionDate={row.get('CollectionDate')} | "
+                    f"OverdueAmount={row.get('OverdueAmount')}"
+                )
+    logger.info("")
+
+    # --- Cross-check: IsPaid แต่ไม่ได้ถูก classify เป็น OnTime หรือ Late ---
+    if all(c in df.columns for c in ("IsPaid", "PaidOnTime", "PaidLate")):
+        paid_rows       = df[df["IsPaid"]].copy()
+        unclassified    = paid_rows[~paid_rows["PaidOnTime"] & ~paid_rows["PaidLate"]]
+        n_unclassified  = len(unclassified)
+        logger.info(f"IsPaid=True แต่ไม่ถูก classify เป็น OnTime หรือ Late: {n_unclassified:,} rows")
+        if n_unclassified > 0:
+            logger.warning("rows เหล่านี้น่าจะมี CollectionDate หรือ OriginalDueDate เป็น NaT")
+            sample = unclassified.head(5)
+            for _, row in sample.iterrows():
+                logger.info(
+                    f"  Customer={row.get('Customer')} | "
+                    f"OriginalDueDate={row.get('OriginalDueDate')} | "
+                    f"CollectionDate={row.get('CollectionDate')} | "
+                    f"OverdueAmount={row.get('OverdueAmount')}"
+                )
+    logger.info("")
+
+    # --- CollectionDate vs OriginalDueDate distribution (IsPaid rows เท่านั้น) ---
+    if all(c in df.columns for c in ("IsPaid", "CollectionDate", "OriginalDueDate")):
+        paid_df = df[df["IsPaid"] & df["CollectionDate"].notna() & df["OriginalDueDate"].notna()].copy()
+        if not paid_df.empty:
+            paid_df["_diff"] = (paid_df["CollectionDate"] - paid_df["OriginalDueDate"]).dt.days
+            n_eq   = int((paid_df["_diff"] == 0).sum())
+            n_lt   = int((paid_df["_diff"] < 0).sum())
+            n_gt   = int((paid_df["_diff"] > 0).sum())
+            logger.info("CollectionDate vs OriginalDueDate (IsPaid rows ที่มีทั้งคู่):")
+            logger.info(f"  CollectionDate == OriginalDueDate : {n_eq:,} rows (On-Time exact)")
+            logger.info(f"  CollectionDate <  OriginalDueDate : {n_lt:,} rows (Early / On-Time)")
+            logger.info(f"  CollectionDate >  OriginalDueDate : {n_gt:,} rows (Late)")
+            logger.info(f"  diff stats — min: {paid_df['_diff'].min():.0f} | mean: {paid_df['_diff'].mean():.1f} | max: {paid_df['_diff'].max():.0f} days")
+        else:
+            logger.warning("IsPaid rows ที่มีทั้ง CollectionDate และ OriginalDueDate: 0 rows")

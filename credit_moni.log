@@ -1,241 +1,294 @@
-2026-06-27 20:14:47 | INFO | START — Credit Planning EDA/Validation Log
-2026-06-27 20:14:47 | INFO | selected_company : 1190
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | BLOCK 0 — Raw df_overdue from session_state (pre-prepare)
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | session_state df_overdue shape : (15679, 10)
-2026-06-27 20:14:47 | INFO | session_state df_overdue columns: ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount']
-2026-06-27 20:14:47 | INFO | CompanyCode distribution (all rows):
-2026-06-27 20:14:47 | INFO |         1190 :  13856 rows
-2026-06-27 20:14:47 | INFO |         6130 :   1823 rows
-2026-06-27 20:14:47 | INFO | OverdueAmount (raw) — >0: 1553 | =0: 14117 | <0: 9 | NaN: 0
-2026-06-27 20:14:47 | INFO | OriginalDueDate raw sample values: ['20241230', '20250130', '20250228', '20250330', '20250430']
-2026-06-27 20:14:47 | INFO | CollectionDate raw sample values: ['20250129', '20250303', '20250331', '20250429', '20250530']
-2026-06-27 20:14:47 | INFO | CustomerDueDate raw sample values: ['20250129', '20250303', '20250331', '20250429', '20250530']
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | BLOCK 1 — df_overdue after _prepare_overdue()
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | Shape : (15679, 26)
-2026-06-27 20:14:47 | INFO | Columns: ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount', 'IsOverdue', 'IsCreditNote', 'OverdueAbs', 'IsPaid', 'DPD', 'DueYear', 'DueMonth', 'DueQuarter', 'DueMonthLabel', 'AgingBucket', 'HasExtension', 'ExtensionDays', 'CustomerExtDays', 'PaidOnTime', 'PaidLate', 'NotCollected']
-2026-06-27 20:14:47 | INFO | Row diff vs raw session_state: 0 rows OK
-2026-06-27 20:14:47 | INFO | CompanyCode distribution (after prepare):
-2026-06-27 20:14:47 | INFO |         1190 :  13856 rows
-2026-06-27 20:14:47 | INFO |         6130 :   1823 rows
-2026-06-27 20:14:47 | INFO | Rows for CompanyCode=1190: 13856
-2026-06-27 20:14:47 | INFO | OverdueAmount (prepared, all companies) — >0: 1553 | =0: 14117 | <0: 9
-2026-06-27 20:14:47 | INFO | OverdueAmount (CompanyCode=1190) — >0: 1361 | =0: 12489 | <0: 6
-2026-06-27 20:14:47 | INFO | OriginalDueDate — parsed OK: 14797 | NaT: 882
-2026-06-27 20:14:47 | WARNING |   OriginalDueDate parse-fail raw samples: ['']
-2026-06-27 20:14:47 | INFO |   OriginalDueDate range: 2024-10-17 00:00:00 → 2026-11-15 00:00:00
-2026-06-27 20:14:47 | INFO | CollectionDate — parsed OK: 15679 | NaT: 0
-2026-06-27 20:14:47 | INFO |   CollectionDate range: 2025-01-01 00:00:00 → 2026-12-15 00:00:00
-2026-06-27 20:14:47 | INFO | CustomerDueDate — parsed OK: 14797 | NaT: 882
-2026-06-27 20:14:47 | WARNING |   CustomerDueDate parse-fail raw samples: ['']
-2026-06-27 20:14:47 | INFO |   CustomerDueDate range: 2025-01-02 00:00:00 → 2026-12-15 00:00:00
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | BLOCK 2 — df_filtered (after _render_filters)
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | Shape : (13856, 36)
-2026-06-27 20:14:47 | INFO | Columns: ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount', 'IsOverdue', 'IsCreditNote', 'OverdueAbs', 'IsPaid', 'DPD', 'DueYear', 'DueMonth', 'DueQuarter', 'DueMonthLabel', 'AgingBucket', 'HasExtension', 'ExtensionDays', 'CustomerExtDays', 'PaidOnTime', 'PaidLate', 'NotCollected', 'CUSTOMER_CODE', 'AVAIL_CUSTOMER_NAME', 'TYPE', 'CLEAN_CREDIT_MB', 'CURRENT_DEBT_MILLION_THB', 'CURRENT_DEBT_MILLION_THB_PERCENT', 'EST_DEBT', 'AVAIL_YEAR', 'UtilizationPct', 'RiskTier']
-2026-06-27 20:14:47 | INFO | OverdueAmount (filtered) — >0: 1361 | =0: 12489 | <0: 6
-2026-06-27 20:14:47 | INFO | Join column 'CUSTOMER_CODE' present: True
-2026-06-27 20:14:47 | INFO |   Joined rows (CUSTOMER_CODE notna): 13439 | Unjoined: 417
-2026-06-27 20:14:47 | INFO | Join column 'AVAIL_CUSTOMER_NAME' present: True
-2026-06-27 20:14:47 | INFO | Join column 'UtilizationPct' present: True
-2026-06-27 20:14:47 | INFO | Join column 'RiskTier' present: True
-2026-06-27 20:14:47 | INFO | RiskTier distribution: {'Healthy': 10662, 'Watch': 2188, 'High Risk': 589, 'Unknown': 417}
-2026-06-27 20:14:47 | INFO | UtilizationPct — mean: 24.51% | max: 99.48% | zero count: 6514
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | SECTION: Collection Pipeline
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | CompanyCode filter: 1190 → 13856 rows
-2026-06-27 20:14:47 | INFO | After OverdueAmount > 0 filter: 1361 rows
-2026-06-27 20:14:47 | INFO | Today reference: 2026-06-27
-2026-06-27 20:14:47 | INFO | CustomerDueDate present : True
-2026-06-27 20:14:47 | INFO | CollectionDate present  : True
-2026-06-27 20:14:47 | INFO | InvoiceAmount present   : True
-2026-06-27 20:14:47 | INFO | Amount column used: InvoiceAmount
-2026-06-27 20:14:47 | INFO | OriginalDueDate — total: 1361 | parsed OK: 1341 | failed: 20
-2026-06-27 20:14:47 | WARNING |   20 rows have NaT OriginalDueDate — excluded from pipeline buckets
-2026-06-27 20:14:47 | INFO | CollectionDate — not-null: 1361 | null: 0
-2026-06-27 20:14:47 | INFO | Pipeline buckets:
-2026-06-27 20:14:47 | INFO |   Upcoming (due >= today, unpaid) :      0 invoices |               0.00 THB
-2026-06-27 20:14:47 | INFO |   Overdue  (due < today,  unpaid) :      0 invoices |               0.00 THB
-2026-06-27 20:14:47 | INFO |   Paid (CollectionDate notna)     :   1361 invoices |   2,200,885,455.81 THB
-2026-06-27 20:14:47 | INFO | CustomerDueDate — parsed OK: 1341 | failed: 20
-2026-06-27 20:14:47 | INFO |   CustomerDueDate range: 2026-03-16 00:00:00 → 2026-12-15 00:00:00
-2026-06-27 20:14:47 | INFO |   Extended (CustomerDue > OriginalDue, unpaid):      0 invoices |               0.00 THB
-2026-06-27 20:14:47 | INFO |   ExtensionDays (>0) — min: 1 | mean: 23.2 | max: 55 | count: 1209
-2026-06-27 20:14:47 | INFO | Bottleneck identified: Overdue
-2026-06-27 20:14:47 | INFO | InvoiceAmount stats — min: 13.95 | mean: 1,617,109.08 | max: 194,284,696.84
-2026-06-27 20:14:47 | INFO | InvoiceAmount zero values: 0 | negative values: 0
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | SECTION: Future Cash Inflow Forecast
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | CompanyCode filter: 1190 → 13856 rows
-2026-06-27 20:14:47 | INFO | Amount column used: InvoiceAmount
-2026-06-27 20:14:47 | INFO | Today reference: 2026-06-27
-2026-06-27 20:14:47 | INFO | CollectionDate — not-null: 13856 | null: 0
-2026-06-27 20:14:47 | INFO |   Horizon   7d (up to 2026-07-04) :   276 invoices |   1,163,389,238.20 THB
-2026-06-27 20:14:47 | INFO |   Horizon  14d (up to 2026-07-11) :   390 invoices |   1,314,596,855.07 THB
-2026-06-27 20:14:47 | INFO |   Horizon  30d (up to 2026-07-27) :   689 invoices |   1,596,479,010.26 THB
-2026-06-27 20:14:47 | INFO |   Horizon  60d (up to 2026-08-26) :  1064 invoices |   2,178,866,681.61 THB
-2026-06-27 20:14:47 | INFO |   Horizon  90d (up to 2026-09-25) :  1493 invoices |   2,695,660,422.33 THB
-2026-06-27 20:14:47 | INFO |   Horizon 120d (up to 2026-10-25) :  1584 invoices |   2,814,973,561.87 THB
-2026-06-27 20:14:47 | INFO | Future CollectionDate range: 2026-06-29 → 2026-12-15
-2026-06-27 20:14:47 | INFO | Weekly distribution (future):
-2026-06-27 20:14:47 | INFO |     2026-06-29/2026-07-05 :   1,163,223,760.13 THB
-2026-06-27 20:14:47 | INFO |     2026-07-06/2026-07-12 :     151,207,616.87 THB
-2026-06-27 20:14:47 | INFO |     2026-07-13/2026-07-19 :     138,477,938.10 THB
-2026-06-27 20:14:47 | INFO |     2026-07-20/2026-07-26 :      98,952,956.44 THB
-2026-06-27 20:14:47 | INFO |     2026-07-27/2026-08-02 :     133,117,046.81 THB
-2026-06-27 20:14:47 | INFO |     2026-08-03/2026-08-09 :     227,509,151.85 THB
-2026-06-27 20:14:47 | INFO |     2026-08-10/2026-08-16 :     104,943,329.58 THB
-2026-06-27 20:14:47 | INFO |     2026-08-17/2026-08-23 :      99,757,090.97 THB
-2026-06-27 20:14:47 | INFO |     2026-08-24/2026-08-30 :      72,403,368.23 THB
-2026-06-27 20:14:47 | INFO |     2026-08-31/2026-09-06 :     287,509,333.68 THB
-2026-06-27 20:14:47 | INFO |     2026-09-07/2026-09-13 :     105,373,853.07 THB
-2026-06-27 20:14:47 | INFO |     2026-09-14/2026-09-20 :      73,293,905.38 THB
-2026-06-27 20:14:47 | INFO |     2026-09-21/2026-09-27 :      39,680,615.10 THB
-2026-06-27 20:14:47 | INFO |     2026-09-28/2026-10-04 :      31,796,904.77 THB
-2026-06-27 20:14:47 | INFO |     2026-10-05/2026-10-11 :      35,042,768.46 THB
-2026-06-27 20:14:47 | INFO |     2026-10-12/2026-10-18 :      33,208,246.65 THB
-2026-06-27 20:14:47 | INFO |     2026-10-19/2026-10-25 :      19,249,723.28 THB
-2026-06-27 20:14:47 | INFO |     2026-10-26/2026-11-01 :       7,775,583.00 THB
-2026-06-27 20:14:47 | INFO |     2026-11-02/2026-11-08 :       4,535,583.95 THB
-2026-06-27 20:14:47 | INFO |     2026-11-09/2026-11-15 :      34,688,007.60 THB
-2026-06-27 20:14:47 | INFO |     2026-11-16/2026-11-22 :       3,874,815.18 THB
-2026-06-27 20:14:47 | INFO |     2026-11-23/2026-11-29 :       1,230,094.26 THB
-2026-06-27 20:14:47 | INFO |     2026-11-30/2026-12-06 :       4,960,428.62 THB
-2026-06-27 20:14:47 | INFO |     2026-12-07/2026-12-13 :       2,139,908.62 THB
-2026-06-27 20:14:47 | INFO |     2026-12-14/2026-12-20 :       2,142,316.12 THB
-2026-06-27 20:14:47 | INFO | Past CollectionDate rows (already collected): 12218
-2026-06-27 20:14:47 | INFO |   Past range: 2025-01-01 → 2026-06-26
-2026-06-27 20:14:47 | INFO |   Past total amount: 22,443,408,928.20 THB
-2026-06-27 20:14:47 | INFO | Uncollected (CollectionDate=null, OverdueAmount>0): 0 rows | 0.00 THB
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | SECTION: Future Collection Forecast (groupby CollectionDate)
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | CompanyCode filter: 1190 → 13856 rows
-2026-06-27 20:14:47 | INFO | Today reference: 2026-06-27
-2026-06-27 20:14:47 | INFO | OverdueAmount stats (all rows) — min: -165,478.07 | mean: 158,820.09 | max: 194,284,696.84
-2026-06-27 20:14:47 | INFO | OverdueAmount > 0 rows: 1361 | <= 0 rows: 12495
-2026-06-27 20:14:47 | INFO |   Horizon   7d :   173 invoices |   5 collection days |     762,643,721.18 THB
-2026-06-27 20:14:47 | INFO |   Horizon  14d :   247 invoices |  10 collection days |     824,761,952.99 THB
-2026-06-27 20:14:47 | INFO |   Horizon  30d :   423 invoices |  21 collection days |     937,361,165.01 THB
-2026-06-27 20:14:47 | INFO |   Horizon  60d :   788 invoices |  40 collection days |   1,500,413,781.38 THB
-2026-06-27 20:14:47 | INFO |   Horizon  90d :  1217 invoices |  60 collection days |   2,017,207,522.10 THB
-2026-06-27 20:14:47 | INFO |   Horizon 120d :  1308 invoices |  77 collection days |   2,136,520,661.64 THB
-2026-06-27 20:14:47 | INFO | Daily breakdown (next 30d) — 21 collection dates:
-2026-06-27 20:14:47 | INFO |     2026-06-29 : 302,354,438.93 THB  | cumulative: 302,354,438.93 THB
-2026-06-27 20:14:47 | INFO |     2026-06-30 : 455,529,067.84 THB  | cumulative: 757,883,506.77 THB
-2026-06-27 20:14:47 | INFO |     2026-07-01 :   1,034,683.05 THB  | cumulative: 758,918,189.82 THB
-2026-06-27 20:14:47 | INFO |     2026-07-02 :   2,996,821.23 THB  | cumulative: 761,915,011.05 THB
-2026-06-27 20:14:47 | INFO |     2026-07-03 :     728,710.13 THB  | cumulative: 762,643,721.18 THB
-2026-06-27 20:14:47 | INFO |     2026-07-06 :  10,288,236.73 THB  | cumulative: 772,931,957.91 THB
-2026-06-27 20:14:47 | INFO |     2026-07-07 :  44,983,386.50 THB  | cumulative: 817,915,344.41 THB
-2026-06-27 20:14:47 | INFO |     2026-07-08 :   1,386,195.70 THB  | cumulative: 819,301,540.11 THB
-2026-06-27 20:14:47 | INFO |     2026-07-09 :   3,879,494.83 THB  | cumulative: 823,181,034.94 THB
-2026-06-27 20:14:47 | INFO |     2026-07-10 :   1,580,918.05 THB  | cumulative: 824,761,952.99 THB
-2026-06-27 20:14:47 | INFO |     2026-07-13 :   8,253,379.74 THB  | cumulative: 833,015,332.73 THB
-2026-06-27 20:14:47 | INFO |     2026-07-14 :   1,567,632.93 THB  | cumulative: 834,582,965.66 THB
-2026-06-27 20:14:47 | INFO |     2026-07-15 :  61,531,957.30 THB  | cumulative: 896,114,922.96 THB
-2026-06-27 20:14:47 | INFO |     2026-07-16 :   2,435,976.45 THB  | cumulative: 898,550,899.41 THB
-2026-06-27 20:14:47 | INFO |     2026-07-17 :   5,023,207.24 THB  | cumulative: 903,574,106.65 THB
-2026-06-27 20:14:47 | INFO |     2026-07-20 :  10,130,120.15 THB  | cumulative: 913,704,226.80 THB
-2026-06-27 20:14:47 | INFO |     2026-07-21 :   3,500,760.20 THB  | cumulative: 917,204,987.00 THB
-2026-06-27 20:14:47 | INFO |     2026-07-22 :   1,206,411.09 THB  | cumulative: 918,411,398.09 THB
-2026-06-27 20:14:47 | INFO |     2026-07-23 :   5,968,917.32 THB  | cumulative: 924,380,315.41 THB
-2026-06-27 20:14:47 | INFO |     2026-07-24 :   5,298,419.93 THB  | cumulative: 929,678,735.34 THB
-2026-06-27 20:14:47 | INFO |     2026-07-27 :   7,682,429.67 THB  | cumulative: 937,361,165.01 THB
-2026-06-27 20:14:47 | INFO | Customer distribution (top 10 by OverdueAmount, next 30d):
-2026-06-27 20:14:47 | INFO |     Customer 7852 : 599,388,029.11 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000036 : 151,624,233.70 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000711 :  46,527,944.81 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000011 :  37,480,904.41 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000010 :  24,915,575.11 THB
-2026-06-27 20:14:47 | INFO |     Customer 2001150 :  12,847,175.75 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000028 :  10,083,829.71 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000016 :   9,000,142.80 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000008 :   8,557,633.06 THB
-2026-06-27 20:14:47 | INFO |     Customer 2000002 :   8,410,941.09 THB
-2026-06-27 20:14:47 | INFO |   Total customers contributing: 32
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | SECTION: Credit Planner — Action Board
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | Customers in aggregation: 49
-2026-06-27 20:14:47 | INFO | NetOverdue — min: 4,110.58 | mean: 44,910,431.43 | max: 599,389,458.46 | sum: 2,200,611,139.84
-2026-06-27 20:14:47 | INFO | NetOverdue > 0      : 49 customers
-2026-06-27 20:14:47 | INFO | NetOverdue > 1M THB : 37 customers
-2026-06-27 20:14:47 | INFO | NetOverdue > 5M THB : 23 customers
-2026-06-27 20:14:47 | INFO | UtilizationPct — min: 0.00% | mean: 34.16% | max: 99.48%
-2026-06-27 20:14:47 | INFO | Util > 80%  : 5 customers
-2026-06-27 20:14:47 | INFO | Util > 90%  : 4 customers
-2026-06-27 20:14:47 | INFO | Util > 100% : 0 customers
-2026-06-27 20:14:47 | INFO | MaxDPD — min: 0 | mean: 10.7 | max: 241
-2026-06-27 20:14:47 | INFO | MaxDPD > 30  : 2 customers
-2026-06-27 20:14:47 | INFO | MaxDPD > 60  : 2 customers
-2026-06-27 20:14:47 | INFO | MaxDPD > 90  : 2 customers
-2026-06-27 20:14:47 | INFO | CustomerDueDate available for ExtensionDays: True
-2026-06-27 20:14:47 | INFO | CustomerDueDate (invoice rows) — notna: 1341 | NaT: 20
-2026-06-27 20:14:47 | INFO | MaxExtension stats — min: 0 | mean: 21.0 | max: 55
-2026-06-27 20:14:47 | INFO | MaxExtension > 0  days : 44 customers
-2026-06-27 20:14:47 | INFO | MaxExtension > 30 days : 18 customers
-2026-06-27 20:14:47 | INFO | MaxExtension > 60 days : 0 customers
-2026-06-27 20:14:47 | INFO | Top 5 customers by MaxExtension:
-2026-06-27 20:14:47 | INFO |     Customer 2000032 : 55 days
-2026-06-27 20:14:47 | INFO |     Customer 2000000 : 53 days
-2026-06-27 20:14:47 | INFO |     Customer 2000029 : 50 days
-2026-06-27 20:14:47 | INFO |     Customer 2000723 : 38 days
-2026-06-27 20:14:47 | INFO |     Customer 2000008 : 37 days
-2026-06-27 20:14:47 | INFO | Action — Call Customer (NetOverdue > 5,000,000)   : 23 customers
-2026-06-27 20:14:47 | INFO | Action — Review Credit (Util > 90%)               : 4 customers
-2026-06-27 20:14:47 | INFO | Action — Escalate (Extension > 30 days)            : 18 customers
-2026-06-27 20:14:47 | INFO | Top 5 Call Customer list:
-2026-06-27 20:14:47 | INFO |     MAPTAPHUT OLEFINS CO., LTD. | NetOverdue: 599,389,458.46 THB | Util: 0.0%
-2026-06-27 20:14:47 | INFO |     MITSUBISHI CHEMICAL CORPORATION | NetOverdue: 485,735,417.33 THB | Util: 0.0%
-2026-06-27 20:14:47 | INFO |     IVICT (Thailand) Company Limited | NetOverdue: 302,752,535.82 THB | Util: 0.0%
-2026-06-27 20:14:47 | INFO |     Itochu (Thailand)  Ltd. | NetOverdue: 157,868,971.05 THB | Util: 0.0%
-2026-06-27 20:14:47 | INFO |     Carbide Chemical (Thailand) Limited | NetOverdue: 117,278,195.46 THB | Util: 63.0%
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | SECTION: Credit Journey — Invoice Extension Sankey
-2026-06-27 20:14:47 | INFO | ======================================================================
-2026-06-27 20:14:47 | INFO | CompanyCode filter: 1190 → 13856 rows
-2026-06-27 20:14:47 | INFO | After OverdueAmount > 0 filter: 1361 rows
-2026-06-27 20:14:47 | INFO | OriginalDueDate present : True
-2026-06-27 20:14:47 | INFO | CustomerDueDate present : True
-2026-06-27 20:14:47 | INFO | CollectionDate present  : True
-2026-06-27 20:14:47 | INFO | Amount column used      : InvoiceAmount
-2026-06-27 20:14:47 | INFO | CustomerDueDate (post-prepare) — notna: 1341 | NaT: 20
-2026-06-27 20:14:47 | INFO | CustomerDueDate range: 2026-03-16 00:00:00 → 2026-12-15 00:00:00
-2026-06-27 20:14:47 | INFO | CustomerDueDate sample (parsed): ['2026-07-30', '2026-07-30', '2026-07-30', '2026-07-30', '2026-07-30']
-2026-06-27 20:14:47 | INFO | ExtensionDays — min: 0 | mean: 20.6 | max: 55
-2026-06-27 20:14:47 | INFO | ExtensionDays > 0 rows: 1209
-2026-06-27 20:14:47 | INFO | Large Overdue threshold: 1,000,000 THB
-2026-06-27 20:14:47 | INFO | Extension bucket distribution:
-2026-06-27 20:14:47 | INFO |   Ext 0-7d   :    250 rows |     834,043,235.33 THB
-2026-06-27 20:14:47 | INFO |   Ext 8-30d  :    741 rows |     866,390,284.75 THB
-2026-06-27 20:14:47 | INFO |   Ext 30+d   :    370 rows |     500,451,935.73 THB
-2026-06-27 20:14:47 | INFO | Outcome — Paid total: 1361 rows | 2,200,885,455.81 THB
-2026-06-27 20:14:47 | INFO | Outcome — Paid On-Time :    152 rows |     751,739,913.81 THB
-2026-06-27 20:14:47 | INFO | Outcome — Paid Late    :   1209 rows |   1,449,145,542.00 THB
-2026-06-27 20:14:47 | INFO | Outcome — Large Overdue:      0 rows |               0.00 THB
-2026-06-27 20:14:47 | INFO | Outcome — Small Overdue:      0 rows |               0.00 THB
-2026-06-27 20:14:47 | INFO | Sankey flow matrix (4 combinations):
-2026-06-27 20:14:47 | INFO |       Ext 0-7d → Paid Late        :    98 rows |      82,303,321.52 THB
-2026-06-27 20:14:47 | INFO |       Ext 0-7d → Paid On-Time     :   152 rows |     751,739,913.81 THB
-2026-06-27 20:14:47 | INFO |       Ext 30+d → Paid Late        :   370 rows |     500,451,935.73 THB
-2026-06-27 20:14:47 | INFO |      Ext 8-30d → Paid Late        :   741 rows |     866,390,284.75 THB
-2026-06-27 20:14:47 | WARNING | Outcomes with zero flow: {'Small Overdue', 'Large Overdue'}
-2026-06-27 20:14:47 | INFO | Total Sankey amount: 2,200,885,455.81 THB
-2026-06-27 20:14:47 | INFO | Total Sankey rows  : 1361
-2026-06-27 20:14:47 | INFO | 
-2026-06-27 20:14:47 | INFO | END — Credit Planning EDA/Validation Log
+2026-06-28 19:09:30 | INFO | START — Credit Planning EDA/Validation Log
+2026-06-28 19:09:30 | INFO | selected_company : 1190
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | BLOCK 0 — Raw df_overdue from session_state (pre-prepare)
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | session_state df_overdue shape : (15679, 10)
+2026-06-28 19:09:30 | INFO | session_state df_overdue columns: ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount']
+2026-06-28 19:09:30 | INFO | CompanyCode distribution (all rows):
+2026-06-28 19:09:30 | INFO |         1190 :  13856 rows
+2026-06-28 19:09:30 | INFO |         6130 :   1823 rows
+2026-06-28 19:09:30 | INFO | OverdueAmount (raw) — >0: 1553 | =0: 14117 | <0: 9 | NaN: 0
+2026-06-28 19:09:30 | INFO | OriginalDueDate raw sample values: ['20241230', '20250130', '20250228', '20250330', '20250430']
+2026-06-28 19:09:30 | INFO | CollectionDate raw sample values: ['20250129', '20250303', '20250331', '20250429', '20250530']
+2026-06-28 19:09:30 | INFO | CustomerDueDate raw sample values: ['20250129', '20250303', '20250331', '20250429', '20250530']
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | BLOCK 1 — df_overdue after _prepare_overdue()
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | Shape : (15679, 27)
+2026-06-28 19:09:30 | INFO | Columns: ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount', 'IsOverdue', 'IsCreditNote', 'OverdueAbs', 'IsPaid', 'DPD', 'DueYear', 'DueMonth', 'DueQuarter', 'DueMonthLabel', 'AgingBucket', 'HasExtension', 'ExtensionDays', 'CustomerExtDays', 'PaidOnTime', 'PaidLate', 'PaidUnknown', 'NotCollected']
+2026-06-28 19:09:30 | INFO | Row diff vs raw session_state: 0 rows OK
+2026-06-28 19:09:30 | INFO | CompanyCode distribution (after prepare):
+2026-06-28 19:09:30 | INFO |         1190 :  13856 rows
+2026-06-28 19:09:30 | INFO |         6130 :   1823 rows
+2026-06-28 19:09:30 | INFO | Rows for CompanyCode=1190: 13856
+2026-06-28 19:09:30 | INFO | OverdueAmount (prepared, all companies) — >0: 1553 | =0: 14117 | <0: 9
+2026-06-28 19:09:30 | INFO | OverdueAmount (CompanyCode=1190) — >0: 1361 | =0: 12489 | <0: 6
+2026-06-28 19:09:30 | INFO | OriginalDueDate — parsed OK: 14797 | NaT: 882
+2026-06-28 19:09:30 | WARNING |   OriginalDueDate parse-fail raw samples: ['']
+2026-06-28 19:09:30 | INFO |   OriginalDueDate range: 2024-10-17 00:00:00 → 2026-11-15 00:00:00
+2026-06-28 19:09:30 | INFO | CollectionDate — parsed OK: 15679 | NaT: 0
+2026-06-28 19:09:30 | INFO |   CollectionDate range: 2025-01-01 00:00:00 → 2026-12-15 00:00:00
+2026-06-28 19:09:30 | INFO | CustomerDueDate — parsed OK: 14797 | NaT: 882
+2026-06-28 19:09:30 | WARNING |   CustomerDueDate parse-fail raw samples: ['']
+2026-06-28 19:09:30 | INFO |   CustomerDueDate range: 2025-01-02 00:00:00 → 2026-12-15 00:00:00
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | BLOCK 2 — df_filtered (after _render_filters)
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | Shape : (13856, 37)
+2026-06-28 19:09:30 | INFO | Columns: ['CompanyCode', 'Customer', 'CustomerName', 'InvoiceDocument', 'OriginalDueDate', 'CollectionDate', 'CustomerDueDate', 'ChequeReceivingDate', 'OverdueAmount', 'InvoiceAmount', 'IsOverdue', 'IsCreditNote', 'OverdueAbs', 'IsPaid', 'DPD', 'DueYear', 'DueMonth', 'DueQuarter', 'DueMonthLabel', 'AgingBucket', 'HasExtension', 'ExtensionDays', 'CustomerExtDays', 'PaidOnTime', 'PaidLate', 'PaidUnknown', 'NotCollected', 'CUSTOMER_CODE', 'AVAIL_CUSTOMER_NAME', 'TYPE', 'CLEAN_CREDIT_MB', 'CURRENT_DEBT_MILLION_THB', 'CURRENT_DEBT_MILLION_THB_PERCENT', 'EST_DEBT', 'AVAIL_YEAR', 'UtilizationPct', 'RiskTier']
+2026-06-28 19:09:30 | INFO | OverdueAmount (filtered) — >0: 1361 | =0: 12489 | <0: 6
+2026-06-28 19:09:30 | INFO | Join column 'CUSTOMER_CODE' present: True
+2026-06-28 19:09:30 | INFO |   Joined rows (CUSTOMER_CODE notna): 13439 | Unjoined: 417
+2026-06-28 19:09:30 | INFO | Join column 'AVAIL_CUSTOMER_NAME' present: True
+2026-06-28 19:09:30 | INFO | Join column 'UtilizationPct' present: True
+2026-06-28 19:09:30 | INFO | Join column 'RiskTier' present: True
+2026-06-28 19:09:30 | INFO | RiskTier distribution: {'Healthy': 10662, 'Watch': 2188, 'High Risk': 589, 'Unknown': 417}
+2026-06-28 19:09:30 | INFO | UtilizationPct — mean: 24.51% | max: 99.48% | zero count: 6514
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | SECTION: PaidOnTime / PaidLate / NotCollected Classification Debug
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | CompanyCode filter: 1190 → 13856 rows
+2026-06-28 19:09:30 | INFO | Column 'OverdueAmount' present: True
+2026-06-28 19:09:30 | INFO | Column 'OriginalDueDate' present: True
+2026-06-28 19:09:30 | INFO | Column 'CollectionDate' present: True
+2026-06-28 19:09:30 | INFO | Column 'CustomerDueDate' present: True
+2026-06-28 19:09:30 | INFO | Column 'IsPaid' present: True
+2026-06-28 19:09:30 | INFO | Column 'PaidOnTime' present: True
+2026-06-28 19:09:30 | INFO | Column 'PaidLate' present: True
+2026-06-28 19:09:30 | INFO | Column 'NotCollected' present: True
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | IsPaid = True  (OverdueAmount == 0): 12,489 rows
+2026-06-28 19:09:30 | INFO | IsPaid = False (OverdueAmount != 0): 1,367 rows
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | PaidOnTime = True: 1,206 rows
+2026-06-28 19:09:30 | INFO | Sample PaidOnTime rows:
+2026-06-28 19:09:30 | INFO |   Customer=2000004 | OriginalDueDate=2026-03-30 00:00:00 | CollectionDate=2026-03-30 00:00:00 | CustomerDueDate=2026-03-30 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=2000004 | OriginalDueDate=2026-03-30 00:00:00 | CollectionDate=2026-03-30 00:00:00 | CustomerDueDate=2026-03-30 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=2000004 | OriginalDueDate=2026-03-30 00:00:00 | CollectionDate=2026-03-30 00:00:00 | CustomerDueDate=2026-03-30 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=2000023 | OriginalDueDate=2026-02-28 00:00:00 | CollectionDate=2026-01-06 00:00:00 | CustomerDueDate=2026-01-06 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=2000023 | OriginalDueDate=2026-02-28 00:00:00 | CollectionDate=2026-01-06 00:00:00 | CustomerDueDate=2026-01-06 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | PaidLate = True: 10,893 rows
+2026-06-28 19:09:30 | INFO | Sample PaidLate rows:
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2024-12-30 00:00:00 | CollectionDate=2025-01-29 00:00:00 | Diff=30 days | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2024-12-30 00:00:00 | CollectionDate=2025-01-29 00:00:00 | Diff=30 days | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2024-12-30 00:00:00 | CollectionDate=2025-01-29 00:00:00 | Diff=30 days | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2024-12-30 00:00:00 | CollectionDate=2025-01-29 00:00:00 | Diff=30 days | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2024-12-30 00:00:00 | CollectionDate=2025-01-29 00:00:00 | Diff=30 days | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | NotCollected = True (OverdueAmount > 0): 1,361 rows
+2026-06-28 19:09:30 | INFO | Sample NotCollected rows:
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2026-06-30 00:00:00 | CollectionDate=2026-07-30 00:00:00 | OverdueAmount=65200.45
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2026-06-30 00:00:00 | CollectionDate=2026-07-30 00:00:00 | OverdueAmount=581410.18
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2026-06-30 00:00:00 | CollectionDate=2026-07-30 00:00:00 | OverdueAmount=117994.25
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2026-06-30 00:00:00 | CollectionDate=2026-07-30 00:00:00 | OverdueAmount=41758.89
+2026-06-28 19:09:30 | INFO |   Customer=31 | OriginalDueDate=2026-06-30 00:00:00 | CollectionDate=2026-07-30 00:00:00 | OverdueAmount=34738.62
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | IsPaid=True แต่ไม่ถูก classify เป็น OnTime หรือ Late: 390 rows
+2026-06-28 19:09:30 | WARNING | rows เหล่านี้น่าจะมี CollectionDate หรือ OriginalDueDate เป็น NaT
+2026-06-28 19:09:30 | INFO |   Customer=6652 | OriginalDueDate=NaT | CollectionDate=2025-01-10 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=6652 | OriginalDueDate=NaT | CollectionDate=2025-01-30 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=6652 | OriginalDueDate=NaT | CollectionDate=2025-01-30 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=6652 | OriginalDueDate=NaT | CollectionDate=2025-03-02 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO |   Customer=6652 | OriginalDueDate=NaT | CollectionDate=2025-03-02 00:00:00 | OverdueAmount=0.0
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | CollectionDate vs OriginalDueDate (IsPaid rows ที่มีทั้งคู่):
+2026-06-28 19:09:30 | INFO |   CollectionDate == OriginalDueDate : 1,198 rows (On-Time exact)
+2026-06-28 19:09:30 | INFO |   CollectionDate <  OriginalDueDate : 8 rows (Early / On-Time)
+2026-06-28 19:09:30 | INFO |   CollectionDate >  OriginalDueDate : 10,893 rows (Late)
+2026-06-28 19:09:30 | INFO |   diff stats — min: -60 | mean: 21.5 | max: 171 days
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | SECTION: Collection Pipeline
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | CompanyCode filter: 1190 → 13856 rows
+2026-06-28 19:09:30 | INFO | After OverdueAmount > 0 filter: 1361 rows
+2026-06-28 19:09:30 | INFO | Today reference: 2026-06-28
+2026-06-28 19:09:30 | INFO | CustomerDueDate present : True
+2026-06-28 19:09:30 | INFO | CollectionDate present  : True
+2026-06-28 19:09:30 | INFO | InvoiceAmount present   : True
+2026-06-28 19:09:30 | INFO | Amount column used: InvoiceAmount
+2026-06-28 19:09:30 | INFO | OriginalDueDate — total: 1361 | parsed OK: 1341 | failed: 20
+2026-06-28 19:09:30 | WARNING |   20 rows have NaT OriginalDueDate — excluded from pipeline buckets
+2026-06-28 19:09:30 | INFO | CollectionDate — not-null: 1361 | null: 0
+2026-06-28 19:09:30 | INFO | Pipeline buckets:
+2026-06-28 19:09:30 | INFO |   Upcoming (due >= today, unpaid) :      0 invoices |               0.00 THB
+2026-06-28 19:09:30 | INFO |   Overdue  (due < today,  unpaid) :      0 invoices |               0.00 THB
+2026-06-28 19:09:30 | INFO |   Paid (CollectionDate notna)     :   1361 invoices |   2,200,885,455.81 THB
+2026-06-28 19:09:30 | INFO | CustomerDueDate — parsed OK: 1341 | failed: 20
+2026-06-28 19:09:30 | INFO |   CustomerDueDate range: 2026-03-16 00:00:00 → 2026-12-15 00:00:00
+2026-06-28 19:09:30 | INFO |   Extended (CustomerDue > OriginalDue, unpaid):      0 invoices |               0.00 THB
+2026-06-28 19:09:30 | INFO |   ExtensionDays (>0) — min: 1 | mean: 23.2 | max: 55 | count: 1209
+2026-06-28 19:09:30 | INFO | Bottleneck identified: Overdue
+2026-06-28 19:09:30 | INFO | InvoiceAmount stats — min: 13.95 | mean: 1,617,109.08 | max: 194,284,696.84
+2026-06-28 19:09:30 | INFO | InvoiceAmount zero values: 0 | negative values: 0
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | SECTION: Future Cash Inflow Forecast
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | CompanyCode filter: 1190 → 13856 rows
+2026-06-28 19:09:30 | INFO | Amount column used: InvoiceAmount
+2026-06-28 19:09:30 | INFO | Today reference: 2026-06-28
+2026-06-28 19:09:30 | INFO | CollectionDate — not-null: 13856 | null: 0
+2026-06-28 19:09:30 | INFO |   Horizon   7d (up to 2026-07-05) :   276 invoices |   1,163,389,238.20 THB
+2026-06-28 19:09:30 | INFO |   Horizon  14d (up to 2026-07-12) :   390 invoices |   1,314,596,855.07 THB
+2026-06-28 19:09:30 | INFO |   Horizon  30d (up to 2026-07-28) :   689 invoices |   1,596,479,010.26 THB
+2026-06-28 19:09:30 | INFO |   Horizon  60d (up to 2026-08-27) :  1066 invoices |   2,181,196,452.96 THB
+2026-06-28 19:09:30 | INFO |   Horizon  90d (up to 2026-09-26) :  1493 invoices |   2,695,660,422.33 THB
+2026-06-28 19:09:30 | INFO |   Horizon 120d (up to 2026-10-26) :  1585 invoices |   2,816,367,600.67 THB
+2026-06-28 19:09:30 | INFO | Future CollectionDate range: 2026-06-29 → 2026-12-15
+2026-06-28 19:09:30 | INFO | Weekly distribution (future):
+2026-06-28 19:09:30 | INFO |     2026-06-29/2026-07-05 :   1,163,223,760.13 THB
+2026-06-28 19:09:30 | INFO |     2026-07-06/2026-07-12 :     151,207,616.87 THB
+2026-06-28 19:09:30 | INFO |     2026-07-13/2026-07-19 :     138,477,938.10 THB
+2026-06-28 19:09:30 | INFO |     2026-07-20/2026-07-26 :      98,952,956.44 THB
+2026-06-28 19:09:30 | INFO |     2026-07-27/2026-08-02 :     133,117,046.81 THB
+2026-06-28 19:09:30 | INFO |     2026-08-03/2026-08-09 :     227,509,151.85 THB
+2026-06-28 19:09:30 | INFO |     2026-08-10/2026-08-16 :     104,943,329.58 THB
+2026-06-28 19:09:30 | INFO |     2026-08-17/2026-08-23 :      99,757,090.97 THB
+2026-06-28 19:09:30 | INFO |     2026-08-24/2026-08-30 :      72,403,368.23 THB
+2026-06-28 19:09:30 | INFO |     2026-08-31/2026-09-06 :     287,509,333.68 THB
+2026-06-28 19:09:30 | INFO |     2026-09-07/2026-09-13 :     105,373,853.07 THB
+2026-06-28 19:09:30 | INFO |     2026-09-14/2026-09-20 :      73,293,905.38 THB
+2026-06-28 19:09:30 | INFO |     2026-09-21/2026-09-27 :      39,680,615.10 THB
+2026-06-28 19:09:30 | INFO |     2026-09-28/2026-10-04 :      31,796,904.77 THB
+2026-06-28 19:09:30 | INFO |     2026-10-05/2026-10-11 :      35,042,768.46 THB
+2026-06-28 19:09:30 | INFO |     2026-10-12/2026-10-18 :      33,208,246.65 THB
+2026-06-28 19:09:30 | INFO |     2026-10-19/2026-10-25 :      19,249,723.28 THB
+2026-06-28 19:09:30 | INFO |     2026-10-26/2026-11-01 :       7,775,583.00 THB
+2026-06-28 19:09:30 | INFO |     2026-11-02/2026-11-08 :       4,535,583.95 THB
+2026-06-28 19:09:30 | INFO |     2026-11-09/2026-11-15 :      34,688,007.60 THB
+2026-06-28 19:09:30 | INFO |     2026-11-16/2026-11-22 :       3,874,815.18 THB
+2026-06-28 19:09:30 | INFO |     2026-11-23/2026-11-29 :       1,230,094.26 THB
+2026-06-28 19:09:30 | INFO |     2026-11-30/2026-12-06 :       4,960,428.62 THB
+2026-06-28 19:09:30 | INFO |     2026-12-07/2026-12-13 :       2,139,908.62 THB
+2026-06-28 19:09:30 | INFO |     2026-12-14/2026-12-20 :       2,142,316.12 THB
+2026-06-28 19:09:30 | INFO | Past CollectionDate rows (already collected): 12218
+2026-06-28 19:09:30 | INFO |   Past range: 2025-01-01 → 2026-06-26
+2026-06-28 19:09:30 | INFO |   Past total amount: 22,443,408,928.20 THB
+2026-06-28 19:09:30 | INFO | Uncollected (CollectionDate=null, OverdueAmount>0): 0 rows | 0.00 THB
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | SECTION: Future Collection Forecast (groupby CollectionDate)
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | CompanyCode filter: 1190 → 13856 rows
+2026-06-28 19:09:30 | INFO | Today reference: 2026-06-28
+2026-06-28 19:09:30 | INFO | OverdueAmount stats (all rows) — min: -165,478.07 | mean: 158,820.09 | max: 194,284,696.84
+2026-06-28 19:09:30 | INFO | OverdueAmount > 0 rows: 1361 | <= 0 rows: 12495
+2026-06-28 19:09:30 | INFO |   Horizon   7d :   173 invoices |   5 collection days |     762,643,721.18 THB
+2026-06-28 19:09:30 | INFO |   Horizon  14d :   247 invoices |  10 collection days |     824,761,952.99 THB
+2026-06-28 19:09:30 | INFO |   Horizon  30d :   423 invoices |  21 collection days |     937,361,165.01 THB
+2026-06-28 19:09:30 | INFO |   Horizon  60d :   790 invoices |  41 collection days |   1,502,743,552.73 THB
+2026-06-28 19:09:30 | INFO |   Horizon  90d :  1217 invoices |  60 collection days |   2,017,207,522.10 THB
+2026-06-28 19:09:30 | INFO |   Horizon 120d :  1309 invoices |  78 collection days |   2,137,914,700.44 THB
+2026-06-28 19:09:30 | INFO | Daily breakdown (next 30d) — 21 collection dates:
+2026-06-28 19:09:30 | INFO |     2026-06-29 : 302,354,438.93 THB  | cumulative: 302,354,438.93 THB
+2026-06-28 19:09:30 | INFO |     2026-06-30 : 455,529,067.84 THB  | cumulative: 757,883,506.77 THB
+2026-06-28 19:09:30 | INFO |     2026-07-01 :   1,034,683.05 THB  | cumulative: 758,918,189.82 THB
+2026-06-28 19:09:30 | INFO |     2026-07-02 :   2,996,821.23 THB  | cumulative: 761,915,011.05 THB
+2026-06-28 19:09:30 | INFO |     2026-07-03 :     728,710.13 THB  | cumulative: 762,643,721.18 THB
+2026-06-28 19:09:30 | INFO |     2026-07-06 :  10,288,236.73 THB  | cumulative: 772,931,957.91 THB
+2026-06-28 19:09:30 | INFO |     2026-07-07 :  44,983,386.50 THB  | cumulative: 817,915,344.41 THB
+2026-06-28 19:09:30 | INFO |     2026-07-08 :   1,386,195.70 THB  | cumulative: 819,301,540.11 THB
+2026-06-28 19:09:30 | INFO |     2026-07-09 :   3,879,494.83 THB  | cumulative: 823,181,034.94 THB
+2026-06-28 19:09:30 | INFO |     2026-07-10 :   1,580,918.05 THB  | cumulative: 824,761,952.99 THB
+2026-06-28 19:09:30 | INFO |     2026-07-13 :   8,253,379.74 THB  | cumulative: 833,015,332.73 THB
+2026-06-28 19:09:30 | INFO |     2026-07-14 :   1,567,632.93 THB  | cumulative: 834,582,965.66 THB
+2026-06-28 19:09:30 | INFO |     2026-07-15 :  61,531,957.30 THB  | cumulative: 896,114,922.96 THB
+2026-06-28 19:09:30 | INFO |     2026-07-16 :   2,435,976.45 THB  | cumulative: 898,550,899.41 THB
+2026-06-28 19:09:30 | INFO |     2026-07-17 :   5,023,207.24 THB  | cumulative: 903,574,106.65 THB
+2026-06-28 19:09:30 | INFO |     2026-07-20 :  10,130,120.15 THB  | cumulative: 913,704,226.80 THB
+2026-06-28 19:09:30 | INFO |     2026-07-21 :   3,500,760.20 THB  | cumulative: 917,204,987.00 THB
+2026-06-28 19:09:30 | INFO |     2026-07-22 :   1,206,411.09 THB  | cumulative: 918,411,398.09 THB
+2026-06-28 19:09:30 | INFO |     2026-07-23 :   5,968,917.32 THB  | cumulative: 924,380,315.41 THB
+2026-06-28 19:09:30 | INFO |     2026-07-24 :   5,298,419.93 THB  | cumulative: 929,678,735.34 THB
+2026-06-28 19:09:30 | INFO |     2026-07-27 :   7,682,429.67 THB  | cumulative: 937,361,165.01 THB
+2026-06-28 19:09:30 | INFO | Customer distribution (top 10 by OverdueAmount, next 30d):
+2026-06-28 19:09:30 | INFO |     Customer 7852 : 599,388,029.11 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000036 : 151,624,233.70 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000711 :  46,527,944.81 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000011 :  37,480,904.41 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000010 :  24,915,575.11 THB
+2026-06-28 19:09:30 | INFO |     Customer 2001150 :  12,847,175.75 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000028 :  10,083,829.71 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000016 :   9,000,142.80 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000008 :   8,557,633.06 THB
+2026-06-28 19:09:30 | INFO |     Customer 2000002 :   8,410,941.09 THB
+2026-06-28 19:09:30 | INFO |   Total customers contributing: 32
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | SECTION: Credit Planner — Action Board
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | Customers in aggregation: 49
+2026-06-28 19:09:30 | INFO | NetOverdue — min: 4,110.58 | mean: 44,910,431.43 | max: 599,389,458.46 | sum: 2,200,611,139.84
+2026-06-28 19:09:30 | INFO | NetOverdue > 0      : 49 customers
+2026-06-28 19:09:30 | INFO | NetOverdue > 1M THB : 37 customers
+2026-06-28 19:09:30 | INFO | NetOverdue > 5M THB : 23 customers
+2026-06-28 19:09:30 | INFO | UtilizationPct — min: 0.00% | mean: 34.16% | max: 99.48%
+2026-06-28 19:09:30 | INFO | Util > 80%  : 5 customers
+2026-06-28 19:09:30 | INFO | Util > 90%  : 4 customers
+2026-06-28 19:09:30 | INFO | Util > 100% : 0 customers
+2026-06-28 19:09:30 | INFO | MaxDPD — min: 0 | mean: 10.9 | max: 242
+2026-06-28 19:09:30 | INFO | MaxDPD > 30  : 2 customers
+2026-06-28 19:09:30 | INFO | MaxDPD > 60  : 2 customers
+2026-06-28 19:09:30 | INFO | MaxDPD > 90  : 2 customers
+2026-06-28 19:09:30 | INFO | CustomerDueDate available for ExtensionDays: True
+2026-06-28 19:09:30 | INFO | CustomerDueDate (invoice rows) — notna: 1341 | NaT: 20
+2026-06-28 19:09:30 | INFO | MaxExtension stats — min: 0 | mean: 21.0 | max: 55
+2026-06-28 19:09:30 | INFO | MaxExtension > 0  days : 44 customers
+2026-06-28 19:09:30 | INFO | MaxExtension > 30 days : 18 customers
+2026-06-28 19:09:30 | INFO | MaxExtension > 60 days : 0 customers
+2026-06-28 19:09:30 | INFO | Top 5 customers by MaxExtension:
+2026-06-28 19:09:30 | INFO |     Customer 2000032 : 55 days
+2026-06-28 19:09:30 | INFO |     Customer 2000000 : 53 days
+2026-06-28 19:09:30 | INFO |     Customer 2000029 : 50 days
+2026-06-28 19:09:30 | INFO |     Customer 2000723 : 38 days
+2026-06-28 19:09:30 | INFO |     Customer 2000008 : 37 days
+2026-06-28 19:09:30 | INFO | Action — Call Customer (NetOverdue > 5,000,000)   : 23 customers
+2026-06-28 19:09:30 | INFO | Action — Review Credit (Util > 90%)               : 4 customers
+2026-06-28 19:09:30 | INFO | Action — Escalate (Extension > 30 days)            : 18 customers
+2026-06-28 19:09:30 | INFO | Top 5 Call Customer list:
+2026-06-28 19:09:30 | INFO |     MAPTAPHUT OLEFINS CO., LTD. | NetOverdue: 599,389,458.46 THB | Util: 0.0%
+2026-06-28 19:09:30 | INFO |     MITSUBISHI CHEMICAL CORPORATION | NetOverdue: 485,735,417.33 THB | Util: 0.0%
+2026-06-28 19:09:30 | INFO |     IVICT (Thailand) Company Limited | NetOverdue: 302,752,535.82 THB | Util: 0.0%
+2026-06-28 19:09:30 | INFO |     Itochu (Thailand)  Ltd. | NetOverdue: 157,868,971.05 THB | Util: 0.0%
+2026-06-28 19:09:30 | INFO |     Carbide Chemical (Thailand) Limited | NetOverdue: 117,278,195.46 THB | Util: 63.0%
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | SECTION: Credit Journey — Invoice Extension Sankey
+2026-06-28 19:09:30 | INFO | ======================================================================
+2026-06-28 19:09:30 | INFO | CompanyCode filter: 1190 → 13856 rows
+2026-06-28 19:09:30 | INFO | After OverdueAmount > 0 filter: 1361 rows
+2026-06-28 19:09:30 | INFO | OriginalDueDate present : True
+2026-06-28 19:09:30 | INFO | CustomerDueDate present : True
+2026-06-28 19:09:30 | INFO | CollectionDate present  : True
+2026-06-28 19:09:30 | INFO | Amount column used      : InvoiceAmount
+2026-06-28 19:09:30 | INFO | CustomerDueDate (post-prepare) — notna: 1341 | NaT: 20
+2026-06-28 19:09:30 | INFO | CustomerDueDate range: 2026-03-16 00:00:00 → 2026-12-15 00:00:00
+2026-06-28 19:09:30 | INFO | CustomerDueDate sample (parsed): ['2026-07-30', '2026-07-30', '2026-07-30', '2026-07-30', '2026-07-30']
+2026-06-28 19:09:30 | INFO | ExtensionDays — min: 0 | mean: 20.6 | max: 55
+2026-06-28 19:09:30 | INFO | ExtensionDays > 0 rows: 1209
+2026-06-28 19:09:30 | INFO | Large Overdue threshold: 1,000,000 THB
+2026-06-28 19:09:30 | INFO | Extension bucket distribution:
+2026-06-28 19:09:30 | INFO |   Ext 0-7d   :    250 rows |     834,043,235.33 THB
+2026-06-28 19:09:30 | INFO |   Ext 8-30d  :    741 rows |     866,390,284.75 THB
+2026-06-28 19:09:30 | INFO |   Ext 30+d   :    370 rows |     500,451,935.73 THB
+2026-06-28 19:09:30 | INFO | Outcome — Paid total: 1361 rows | 2,200,885,455.81 THB
+2026-06-28 19:09:30 | INFO | Outcome — Paid On-Time :    152 rows |     751,739,913.81 THB
+2026-06-28 19:09:30 | INFO | Outcome — Paid Late    :   1209 rows |   1,449,145,542.00 THB
+2026-06-28 19:09:30 | INFO | Outcome — Large Overdue:      0 rows |               0.00 THB
+2026-06-28 19:09:30 | INFO | Outcome — Small Overdue:      0 rows |               0.00 THB
+2026-06-28 19:09:30 | INFO | Sankey flow matrix (4 combinations):
+2026-06-28 19:09:30 | INFO |       Ext 0-7d → Paid Late        :    98 rows |      82,303,321.52 THB
+2026-06-28 19:09:30 | INFO |       Ext 0-7d → Paid On-Time     :   152 rows |     751,739,913.81 THB
+2026-06-28 19:09:30 | INFO |       Ext 30+d → Paid Late        :   370 rows |     500,451,935.73 THB
+2026-06-28 19:09:30 | INFO |      Ext 8-30d → Paid Late        :   741 rows |     866,390,284.75 THB
+2026-06-28 19:09:30 | WARNING | Outcomes with zero flow: {'Large Overdue', 'Small Overdue'}
+2026-06-28 19:09:30 | INFO | Total Sankey amount: 2,200,885,455.81 THB
+2026-06-28 19:09:30 | INFO | Total Sankey rows  : 1361
+2026-06-28 19:09:30 | INFO | 
+2026-06-28 19:09:30 | INFO | END — Credit Planning EDA/Validation Log
