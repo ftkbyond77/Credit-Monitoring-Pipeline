@@ -158,7 +158,6 @@ def _build_report_html(
     else:
         customers = ["All Records"]
 
-    # สร้าง customer block HTML
     customer_blocks_html = ""
     for i, customer in enumerate(customers):
         if "CustomerName" in filtered_df.columns:
@@ -186,10 +185,7 @@ def _build_report_html(
                         {len(group)} records &nbsp;|&nbsp; OverdueAmount: {total:,.2f} THB
                     </span>
                 </div>
-                <button
-                    class="btn-copy"
-                    onclick="copySingle('{section_id}', this)"
-                >
+                <button class="btn-copy" onclick="copySingle('{section_id}', this)">
                     Copy Table
                 </button>
             </div>
@@ -199,8 +195,6 @@ def _build_report_html(
         </div>
         """
 
-    sig_escaped = email_body_text.replace("<", "&lt;").replace(">", "&gt;")
-
     return f"""<!DOCTYPE html>
 <html lang="th">
 <head>
@@ -209,24 +203,18 @@ def _build_report_html(
 <title>Overdue Daily Report — {report_date_str}</title>
 <style>
 
-  /* ============================================================
-     Reset + Base
-  ============================================================ */
   *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
   body {{
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     font-size: 13px;
-    background: #eef1f6;
-    color: #1e2d45;
+    background: #e8f5f3;
+    color: #1a2e2b;
     padding: 28px 32px;
   }}
 
-  /* ============================================================
-     Page Header
-  ============================================================ */
   .page-header {{
-    background: linear-gradient(120deg, #2c4a7c 0%, #3d6499 100%);
+    background: linear-gradient(120deg, #0d7a6e 0%, #129989 100%);
     color: white;
     border-radius: 10px;
     padding: 22px 28px;
@@ -243,7 +231,7 @@ def _build_report_html(
   }}
   .page-header .meta {{
     font-size: 0.76rem;
-    opacity: 0.78;
+    opacity: 0.82;
   }}
   .badge {{
     font-size: 0.7rem;
@@ -257,37 +245,6 @@ def _build_report_html(
     white-space: nowrap;
   }}
 
-  /* ============================================================
-     Email Preview Box
-  ============================================================ */
-  .email-box {{
-    background: white;
-    border-left: 3px solid #3d6499;
-    border-radius: 10px;
-    padding: 16px 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.07);
-  }}
-  .email-box .label {{
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #3d6499;
-    margin-bottom: 10px;
-  }}
-  .email-box pre {{
-    font-family: 'Segoe UI', sans-serif;
-    font-size: 0.85rem;
-    line-height: 1.75;
-    white-space: pre-wrap;
-    color: #1e2d45;
-  }}
-  .sig {{ color: #b83232; font-weight: 500; }}
-
-  /* ============================================================
-     Action Bar (Copy All + Copy Multi)
-  ============================================================ */
   .action-bar {{
     display: flex;
     align-items: center;
@@ -300,13 +257,10 @@ def _build_report_html(
   }}
   .action-bar .action-label {{
     font-size: 0.75rem;
-    color: #5a6f8a;
+    color: #4a6e6a;
     margin-right: 4px;
   }}
 
-  /* ============================================================
-     Buttons
-  ============================================================ */
   .btn {{
     display: inline-flex;
     align-items: center;
@@ -324,17 +278,17 @@ def _build_report_html(
   .btn:active {{ transform: scale(0.97); }}
 
   .btn-primary {{
-    background: #2c4a7c;
+    background: #129989;
     color: white;
   }}
-  .btn-primary:hover {{ background: #3d6499; }}
+  .btn-primary:hover {{ background: #0d7a6e; }}
 
   .btn-secondary {{
     background: white;
-    color: #2c4a7c;
-    border: 1.5px solid #2c4a7c;
+    color: #129989;
+    border: 1.5px solid #129989;
   }}
-  .btn-secondary:hover {{ background: #eef1f6; }}
+  .btn-secondary:hover {{ background: #e8f5f3; }}
 
   .btn-success {{
     background: #1a7a4a !important;
@@ -342,11 +296,10 @@ def _build_report_html(
     border-color: #1a7a4a !important;
   }}
 
-  /* btn-copy ใน block header */
   .btn-copy {{
     display: inline-flex;
     align-items: center;
-    background: #2c4a7c;
+    background: #129989;
     color: white;
     border: none;
     border-radius: 8px;
@@ -357,20 +310,17 @@ def _build_report_html(
     transition: background 0.18s, transform 0.1s;
     white-space: nowrap;
   }}
-  .btn-copy:hover   {{ background: #3d6499; }}
-  .btn-copy:active  {{ transform: scale(0.97); }}
+  .btn-copy:hover  {{ background: #0d7a6e; }}
+  .btn-copy:active {{ transform: scale(0.97); }}
   .btn-copy.success {{ background: #1a7a4a; }}
 
-  /* ============================================================
-     Customer Block
-  ============================================================ */
   .customer-block {{
     background: white;
     border-radius: 10px;
     margin-bottom: 16px;
     box-shadow: 0 1px 6px rgba(0,0,0,0.07);
     overflow: hidden;
-    border: 1px solid #d8e0ec;
+    border: 1px solid #b2d8d3;
   }}
 
   .block-header {{
@@ -378,8 +328,8 @@ def _build_report_html(
     justify-content: space-between;
     align-items: center;
     padding: 12px 18px;
-    background: #f4f7fc;
-    border-bottom: 1px solid #d8e0ec;
+    background: #f0faf8;
+    border-bottom: 1px solid #b2d8d3;
     gap: 12px;
   }}
   .block-header-left {{
@@ -390,11 +340,10 @@ def _build_report_html(
     min-width: 0;
   }}
 
-  /* Checkbox */
   .row-check {{
     width: 16px;
     height: 16px;
-    accent-color: #2c4a7c;
+    accent-color: #129989;
     cursor: pointer;
     flex-shrink: 0;
   }}
@@ -402,53 +351,41 @@ def _build_report_html(
   .customer-title {{
     font-size: 0.9rem;
     font-weight: 700;
-    color: #1e2d45;
+    color: #1a2e2b;
     cursor: pointer;
   }}
   .block-meta {{
     font-size: 0.74rem;
-    color: #6a7f9a;
+    color: #4a6e6a;
   }}
 
-  /* ============================================================
-     Table Wrapper — scroll horizontal, กรอบคม
-  ============================================================ */
   .table-scroll {{
-    overflow-x: auto;        /* scroll ซ้าย-ขวาเมื่อ column เกิน */
+    overflow-x: auto;
     overflow-y: visible;
     padding: 14px 18px 16px;
     max-width: 100%;
   }}
-
-  /* table เอง: ไม่มี CSS style — ปล่อย browser default
-     เพื่อให้ paste ใน Outlook ได้ border grid line เดิม      */
   .table-scroll table {{
     border-collapse: collapse;
-    min-width: 100%;          /* บังคับให้ scroll แทน wrap */
-    white-space: nowrap;      /* ป้องกัน column ตัดบรรทัด */
+    min-width: 100%;
+    white-space: nowrap;
   }}
 
-  /* ============================================================
-     Divider + Footer
-  ============================================================ */
-  hr {{ border: none; border-top: 1px solid #d8e0ec; margin: 20px 0; }}
+  hr {{ border: none; border-top: 1px solid #b2d8d3; margin: 20px 0; }}
 
   .footer {{
     text-align: center;
     font-size: 0.7rem;
-    color: #9aaabb;
+    color: #7aaba6;
     margin-top: 28px;
     padding-bottom: 16px;
   }}
 
-  /* ============================================================
-     Toast notification
-  ============================================================ */
   #toast {{
     position: fixed;
     bottom: 28px;
     right: 28px;
-    background: #1e2d45;
+    background: #0d7a6e;
     color: white;
     font-size: 0.8rem;
     font-weight: 600;
@@ -466,7 +403,6 @@ def _build_report_html(
 </head>
 <body>
 
-<!-- ===== Page Header ===== -->
 <div class="page-header">
   <div>
     <h1>Credit Overdue Daily Report</h1>
@@ -479,54 +415,25 @@ def _build_report_html(
   <div class="badge">Confidential</div>
 </div>
 
-<!-- ===== Email Preview ===== -->
-<div class="email-box">
-  <div class="label">Email Message Preview</div>
-  <pre id="email-text">{sig_escaped}</pre>
-</div>
-
-<hr>
-
-<!-- ===== Action Bar ===== -->
 <div class="action-bar">
   <span class="action-label">Bulk Actions:</span>
-  <button class="btn btn-primary" onclick="copyAll()">
-    Copy All Tables
-  </button>
-  <button class="btn btn-secondary" onclick="copySelected()">
-    Copy Multi (Selected)
-  </button>
-  <span id="selected-count" style="font-size:0.74rem;color:#6a7f9a;margin-left:6px;">
+  <button class="btn btn-primary" onclick="copyAll()">Copy All Tables</button>
+  <button class="btn btn-secondary" onclick="copySelected()">Copy Multi (Selected)</button>
+  <span id="selected-count" style="font-size:0.74rem;color:#4a6e6a;margin-left:6px;">
     0 selected
   </span>
 </div>
 
-<!-- ===== Customer Blocks ===== -->
 {customer_blocks_html}
 
-<!-- ===== Footer ===== -->
 <div class="footer">
   Credit Monitoring System &nbsp;|&nbsp; {report_date_str}
 </div>
 
-<!-- ===== Toast ===== -->
 <div id="toast"></div>
 
 <script>
 
-  /* ---- Signature color ---- */
-  (function () {{
-    const pre = document.getElementById('email-text');
-    if (!pre) return;
-    const lines = pre.textContent.split('\\n');
-    let inSig = false;
-    pre.innerHTML = lines.map(line => {{
-      if (!inSig && (line.startsWith('Best Regards') || line.startsWith('*-'))) inSig = true;
-      return inSig ? '<span class="sig">' + line + '</span>' : line;
-    }}).join('\\n');
-  }})();
-
-  /* ---- Checkbox counter ---- */
   document.querySelectorAll('.row-check').forEach(function(chk) {{
     chk.addEventListener('change', updateCount);
   }});
@@ -537,7 +444,6 @@ def _build_report_html(
       n === 0 ? '0 selected' : n + ' selected';
   }}
 
-  /* ---- Toast helper ---- */
   function showToast(msg) {{
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -545,7 +451,6 @@ def _build_report_html(
     setTimeout(() => t.classList.remove('show'), 2200);
   }}
 
-  /* ---- Core: copy table HTML ใน div เป็น rich HTML ---- */
   async function copyTableHTML(tableWrapperEl, btnEl) {{
     const table = tableWrapperEl.querySelector('table');
     if (!table) return;
@@ -561,7 +466,6 @@ def _build_report_html(
         new ClipboardItem({{ 'text/html': htmlBlob, 'text/plain': textBlob }})
       ]);
     }} catch (e) {{
-      /* fallback execCommand */
       const range = document.createRange();
       range.selectNode(table);
       window.getSelection().removeAllRanges();
@@ -581,19 +485,16 @@ def _build_report_html(
     }}
   }}
 
-  /* ---- Copy single table ---- */
   function copySingle(sectionId, btn) {{
     const el = document.getElementById(sectionId);
     copyTableHTML(el, btn).then(() => showToast('Table copied'));
   }}
 
-  /* ---- Copy ALL tables — merge เป็น HTML เดียว ---- */
   async function copyAll() {{
     const wrappers = document.querySelectorAll('.table-scroll');
     await copyMerged(wrappers, 'All tables copied (' + wrappers.length + ')');
   }}
 
-  /* ---- Copy SELECTED tables ---- */
   async function copySelected() {{
     const checked = document.querySelectorAll('.row-check:checked');
     if (checked.length === 0) {{
@@ -607,7 +508,6 @@ def _build_report_html(
     await copyMerged(wrappers, checked.length + ' table(s) copied');
   }}
 
-  /* ---- Merge หลาย table เป็น HTML เดียวแล้ว copy ---- */
   async function copyMerged(wrappers, toastMsg) {{
     let combinedHTML = '<meta charset="utf-8">';
     let combinedText = '';
@@ -615,10 +515,9 @@ def _build_report_html(
     wrappers.forEach(function(w, i) {{
       const table = w ? w.querySelector('table') : null;
       if (!table) return;
-      /* หา customer title จาก block parent */
-      const block  = w.closest('.customer-block');
-      const title  = block ? block.querySelector('.customer-title') : null;
-      const label  = title ? title.textContent.trim() : ('Table ' + (i + 1));
+      const block = w.closest('.customer-block');
+      const title = block ? block.querySelector('.customer-title') : null;
+      const label = title ? title.textContent.trim() : ('Table ' + (i + 1));
 
       combinedHTML += '<p><strong>' + label + '</strong></p>';
       combinedHTML += table.outerHTML;
@@ -645,10 +544,7 @@ def _build_report_html(
 </body>
 </html>"""
 
-# ---------------------------------------------------------------------------
-# เขียน HTML ลง tempfile แล้วเปิดด้วย webbrowser (เหมือน example)
-# ทำงานฝั่ง server — เหมาะกับ local Streamlit
-# ---------------------------------------------------------------------------
+
 # ---------------------------------------------------------------------------
 # เปิด tab ตาม case:
 #   has_overdue = True  → เปิด 2 tab (report HTML + Outlook)
