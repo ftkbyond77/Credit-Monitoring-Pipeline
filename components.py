@@ -40,12 +40,28 @@ def apply_base_layout(fig: go.Figure, extra: dict) -> go.Figure:
 
 
 def kpi_card(label: str, value: str, sub: str = "", variant: str = "info") -> str:
-    """Return an HTML string for a styled KPI card."""
-    sub_html = f'<div class="kpi-sub">{sub}</div>' if sub else ''
+    variant_styles = {
+        "danger":  ("rgba(215,38,61,0.07)",  "#A01F2D"),
+        "warning": ("rgba(181,98,10,0.07)",  "#B5620A"),
+        "safe":    ("rgba(26,122,74,0.07)",  "#1A7A4A"),
+        "info":    ("rgba(27,79,138,0.07)",  "#1B4F8A"),
+    }
+    bg, accent = variant_styles.get(variant, variant_styles["info"])
+    sub_html = (
+        f'<div style="font-size:0.70rem;color:#888;margin-top:4px;'
+        f'line-height:1.3;word-break:break-word;">{sub}</div>'
+        if sub else '<div></div>'
+    )
     return (
-        f'<div class="kpi-card {variant}">'
-        f'<div class="kpi-label">{label}</div>'
-        f'<div class="kpi-value {variant}">{value}</div>'
+        f'<div style="background:{bg};border-left:3px solid {accent};'
+        f'border-radius:8px;padding:14px 16px;'
+        f'display:grid;grid-template-rows:auto 1fr auto;'
+        f'height:110px;box-sizing:border-box;width:100%;">'
+        f'<div style="font-size:0.72rem;font-weight:700;color:{accent};'
+        f'letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">'
+        f'{label}</div>'
+        f'<div style="font-size:1.25rem;font-weight:800;color:#1a2a3a;'
+        f'line-height:1.15;word-break:break-word;align-self:center;">{value}</div>'
         f'{sub_html}'
         f'</div>'
     )

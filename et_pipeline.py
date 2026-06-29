@@ -35,9 +35,6 @@ def analyze_excel_sheets(file_buffer):
 def _transform_availability(df, sheet_name):
     raw_rows_count = len(df)
 
-    # ------------------------------------------------------------------
-    # 1. Robust column rename mapping
-    # ------------------------------------------------------------------
     new_cols = []
     debt_count = 0
     prev_clean_col = ""
@@ -92,19 +89,14 @@ def _transform_availability(df, sheet_name):
 
     df.columns = new_cols
 
-    # ------------------------------------------------------------------
-    # 2. Drop duplicate header rows and log for Data Governance
-    # ------------------------------------------------------------------
+    # Drop duplicate header rows
     drop_mask = pd.Series(False, index=df.index)
-
     if 'CUSTOMER_CODE' in df.columns:
         code_str = df['CUSTOMER_CODE'].astype(str).str.strip().str.lower()
         drop_mask |= code_str.str.contains('customer code', na=False)
-
     if 'CUSTOMER_NAME' in df.columns:
         name_str = df['CUSTOMER_NAME'].astype(str).str.strip().str.lower()
         drop_mask |= name_str.str.contains('customer name', na=False)
-
     if 'TYPE' in df.columns:
         type_str = df['TYPE'].astype(str).str.strip().str.lower()
         drop_mask |= (type_str == 'type') | type_str.str.contains('typeclean', na=False)
@@ -113,23 +105,18 @@ def _transform_availability(df, sheet_name):
     df = df[~drop_mask]
 
     len_before_na = len(df)
-
     if 'CUSTOMER_CODE' in df.columns:
         code_series = df['CUSTOMER_CODE'].astype(str).str.strip().str.lower()
         df = df[~code_series.isin(['none', 'nan', '', ' '])]
         df = df.dropna(subset=['CUSTOMER_CODE'])
-
     na_rows_dropped_count = len_before_na - len(df)
 
-    # ------------------------------------------------------------------
-    # 3. Type casting
-    # ------------------------------------------------------------------
+    # Type casting
     float_cols = [
         'CLEAN_CREDIT_MB', 'CURRENT_DEBT_MILLION_THB',
         'CURRENT_DEBT_MILLION_THB_PERCENT', 'EST_FURTHER_AMOUNT',
         'EST_DEBT', 'ESTIMATE_AMOUNT'
     ]
-
     for c in float_cols:
         if c in df.columns:
             df[c] = df[c].replace(['-', '#DIV/0!', '#N/A', ' - ', 'None'], np.nan)
@@ -138,17 +125,14 @@ def _transform_availability(df, sheet_name):
     if 'CUSTOMER_CODE' in df.columns:
         df['CUSTOMER_CODE'] = (
             pd.to_numeric(df['CUSTOMER_CODE'], errors='coerce')
-            .fillna(0)
-            .astype(int)
+            .fillna(0).astype(int)
         )
     if 'CUSTOMER_NAME' in df.columns:
         df['CUSTOMER_NAME'] = df['CUSTOMER_NAME'].astype(str).replace('nan', '')
     if 'TYPE' in df.columns:
         df['TYPE'] = df['TYPE'].astype(str).replace('nan', '')
 
-    # ------------------------------------------------------------------
-    # 4. Date parsing
-    # ------------------------------------------------------------------
+    # Date parsing
     if 'DATE' in df.columns:
         df['DATE'] = df['DATE'].ffill()
 
@@ -157,10 +141,7 @@ def _transform_availability(df, sheet_name):
                 return np.nan
             try:
                 ts = pd.to_datetime(val)
-                year = ts.year
-                month = ts.month
-                day = ts.day
-
+                year, month, day = ts.year, ts.month, ts.day
                 if str(sheet_name).strip() in ['2023', '2024']:
                     return datetime.date(year, month, day)
                 else:
@@ -173,32 +154,53 @@ def _transform_availability(df, sheet_name):
 
         df['DATE'] = df['DATE'].apply(parse_and_realign_date)
 
-    # ------------------------------------------------------------------
-    # 5. Fallback: derive CURRENT_DEBT_MILLION_THB_PERCENT when missing
-    # ------------------------------------------------------------------
+    # Fallback CURRENT_DEBT_MILLION_THB_PERCENT
     has_debt_col = 'CURRENT_DEBT_MILLION_THB_PERCENT' in df.columns
     needs_fallback = (
         not has_debt_col
         or df['CURRENT_DEBT_MILLION_THB_PERCENT'].fillna(0).eq(0).all()
     )
-
     if needs_fallback:
-        if (
-            'CURRENT_DEBT_MILLION_THB' in df.columns
-            and 'CLEAN_CREDIT_MB' in df.columns
-        ):
+        if 'CURRENT_DEBT_MILLION_THB' in df.columns and 'CLEAN_CREDIT_MB' in df.columns:
             clean_credit = df['CLEAN_CREDIT_MB'].replace(0, np.nan)
             df['CURRENT_DEBT_MILLION_THB_PERCENT'] = (
                 df['CURRENT_DEBT_MILLION_THB'] / clean_credit
             ).fillna(0.0).clip(upper=10.0)
-            # clip upper=10.0 (1000%) กัน outlier จาก clean_credit ผิดปกติ
-            # ค่าปกติควรอยู่ 0.0-2.0 สูงสุดไม่ควรเกิน 10x
+
+    # ------------------------------------------------------------------
+    # Deduplication log — capture rows removed by keep-first per
+    # (CUSTOMER_CODE) within each month window, before returning.
+    # This mirrors the logic in view_avail._dedup_for_kpi() so the
+    # transform page can show exactly which rows were deduplicated.
+    # ------------------------------------------------------------------
+    df_dedup_removed = pd.DataFrame()
+    if 'CUSTOMER_CODE' in df.columns and 'DATE' in df.columns:
+        df['_MONTH_TMP'] = df['DATE'].apply(
+            lambda d: d.month if pd.notna(d) and hasattr(d, 'month') else None
+        )
+        parts_kept, parts_removed = [], []
+        for _, grp in df.groupby('_MONTH_TMP', sort=False, dropna=False):
+            first_idx = grp.drop_duplicates(subset=['CUSTOMER_CODE'], keep='first').index
+            dup_idx   = grp.index.difference(first_idx)
+            parts_kept.append(grp.loc[first_idx])
+            if len(dup_idx):
+                removed = grp.loc[dup_idx].copy()
+                removed['_DEDUP_REASON'] = 'Duplicate CUSTOMER_CODE in same month (keep first)'
+                parts_removed.append(removed)
+
+        if parts_removed:
+            df_dedup_removed = pd.concat(parts_removed, ignore_index=True).drop(
+                columns=['_MONTH_TMP'], errors='ignore'
+            )
+
+        df = df.drop(columns=['_MONTH_TMP'], errors='ignore')
 
     debug_info = {
-        'raw_rows': raw_rows_count,
-        'header_dropped_df': df_dropped_headers,
-        'na_dropped_count': na_rows_dropped_count,
-        'final_rows': len(df)
+        'raw_rows':           raw_rows_count,
+        'header_dropped_df':  df_dropped_headers,
+        'na_dropped_count':   na_rows_dropped_count,
+        'dedup_removed_df':   df_dedup_removed,
+        'final_rows':         len(df),
     }
 
     return df, debug_info

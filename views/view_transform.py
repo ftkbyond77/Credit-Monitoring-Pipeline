@@ -37,12 +37,9 @@ def render():
 
 def _no_data_banner():
     st.markdown("""
-    <div style="background:#f8f9fc;border:1.5px solid #d0dae6;border-radius:10px;
-    padding:28px;text-align:center;margin-top:32px;">
-        <div style="font-size:13px;font-weight:600;color:#1a2540;margin-bottom:6px;">
-            No Data Available
-        </div>
-        <div style="font-size:11px;color:#7a90a8;">
+    <div style="text-align:center;padding:60px 20px;">
+        <div style="font-size:1.1rem;font-weight:700;color:#3a4a60;">No Data Available</div>
+        <div style="font-size:0.88rem;color:#666;margin-top:6px;">
             Go to <b>Loading and Processing Data</b> to upload and process files first.
         </div>
     </div>
@@ -96,27 +93,97 @@ def _render_avail_tab(df_avail, debug_info_dict, selected_sheets):
         for idx, sheet in enumerate(active_debug):
             with dbg_tabs[idx]:
                 d = debug_info_dict[sheet]
-                c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Raw Rows",            d['raw_rows'])
-                c2.metric("Header Rows Dropped", len(d['header_dropped_df']),
-                          delta="removed", delta_color="inverse")
-                c3.metric("Null Rows Dropped",   d['na_dropped_count'],
-                          delta="removed", delta_color="inverse")
-                c4.metric("Final Rows",          d['final_rows'],
-                          delta="ready",   delta_color="normal")
 
-                dc1, dc2 = st.columns(2)
-                with dc1:
-                    st.markdown("**Duplicate Headers Removed:**")
+                dedup_df        = d.get('dedup_removed_df', None)
+                dedup_count     = len(dedup_df) if dedup_df is not None and not dedup_df.empty else 0
+                header_count    = len(d['header_dropped_df'])
+                na_count        = d['na_dropped_count']
+                total_removed   = header_count + na_count + dedup_count
+
+                # ── Metrics row ──────────────────────────────────────────
+                c1, c2, c3, c4, c5, c6 = st.columns(6)
+                c1.metric("Raw Rows",              d['raw_rows'])
+                c2.metric("Header Rows Removed",   header_count,
+                          delta="removed", delta_color="inverse")
+                c3.metric("Null Rows Removed",     na_count,
+                          delta="removed", delta_color="inverse")
+                c4.metric("Duplicate Rows Removed",dedup_count,
+                          delta="removed", delta_color="inverse")
+                c5.metric("Total Rows Removed",    total_removed,
+                          delta="removed", delta_color="inverse")
+                c6.metric("Final Rows",            d['final_rows'],
+                          delta="ready", delta_color="normal")
+
+                st.markdown("---")
+
+                # ── Sub-tabs per removal type ─────────────────────────────
+                log_tab1, log_tab2, log_tab3, log_tab4 = st.tabs([
+                    "Duplicate Header Rows",
+                    "Null / Invalid Rows",
+                    "Dedup Multi-Type Rows",
+                    "Data Type Schema",
+                ])
+
+                with log_tab1:
+                    st.caption(
+                        "Rows removed because CUSTOMER_CODE / CUSTOMER_NAME / TYPE "
+                        "matched the original column header text (embedded header rows in Excel)."
+                    )
                     if not d['header_dropped_df'].empty:
-                        st.dataframe(d['header_dropped_df'], height=150, use_container_width=True)
+                        st.dataframe(
+                            d['header_dropped_df'],
+                            height=200, use_container_width=True,
+                        )
                     else:
-                        st.info("None found.")
-                with dc2:
-                    st.markdown("**Data Type Schema:**")
-                    dtype_df            = df_avail.dtypes.astype(str).reset_index()
-                    dtype_df.columns    = ['Column', 'Type']
-                    st.dataframe(dtype_df, height=150, use_container_width=True)
+                        st.success("No duplicate header rows found.")
+
+                with log_tab2:
+                    st.caption(
+                        "Rows removed because CUSTOMER_CODE was null, empty, "
+                        "or a non-parseable string after type casting."
+                    )
+                    if na_count > 0:
+                        st.warning(f"{na_count} row(s) were removed. "
+                                   "Raw snapshot not stored (rows were already invalid before column assignment).")
+                    else:
+                        st.success("No null / invalid rows found.")
+
+                with log_tab3:
+                    st.caption(
+                        "Rows removed during deduplication: same CUSTOMER_CODE "
+                        "appearing more than once within the same month. "
+                        "The first occurrence is kept; subsequent rows (typically "
+                        "duplicate credit limits across multiple product types) are removed here."
+                    )
+                    if dedup_df is not None and not dedup_df.empty:
+                        show_cols = [
+                            c for c in [
+                                'DATE', 'CUSTOMER_CODE', 'CUSTOMER_NAME', 'TYPE',
+                                'CLEAN_CREDIT_MB', 'CURRENT_DEBT_MILLION_THB',
+                                '_DEDUP_REASON',
+                            ]
+                            if c in dedup_df.columns
+                        ]
+                        st.dataframe(
+                            dedup_df[show_cols] if show_cols else dedup_df,
+                            height=220, use_container_width=True,
+                        )
+                        csv_bytes = dedup_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="Download removed rows (.csv)",
+                            data=csv_bytes,
+                            file_name=f"dedup_removed_{sheet}.csv",
+                            mime="text/csv",
+                            key=f"dedup_dl_{sheet}",
+                        )
+                    else:
+                        st.success("No duplicate rows removed for this sheet.")
+
+                with log_tab4:
+                    st.caption("Column data types after transformation.")
+                    dtype_df         = df_avail.dtypes.astype(str).reset_index()
+                    dtype_df.columns = ['Column', 'Type']
+                    st.dataframe(dtype_df, height=200, use_container_width=True)
 
 
 def _render_overdue_tab(df_overdue, latest_name):
