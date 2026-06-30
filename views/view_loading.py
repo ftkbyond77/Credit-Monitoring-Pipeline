@@ -1,8 +1,8 @@
 # views/view_loading.py
+import io
 import streamlit as st
 import streamlit.components.v1 as components
 from et_pipeline import analyze_excel_sheets, run_pipeline
-
 
 _PIPELINE_KEYS = {
     "data_processed":      False,
@@ -13,12 +13,9 @@ _PIPELINE_KEYS = {
     "selected_sheets":     [],
 }
 
-
 def _reset_pipeline_state():
-    """Reset เฉพาะ processed data — ไม่แตะ active_page หรือ navigation state."""
     for k, v in _PIPELINE_KEYS.items():
         st.session_state[k] = v
-
 
 _THREE_JS = """
 <!DOCTYPE html>
@@ -173,15 +170,18 @@ _UPLOAD_CSS = """
     flex-shrink: 0;
 }
 .up-section-tag {
-    font-size: 9px;
+    font-size: 1.05rem;
     font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #049a8a;
-    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+    color: #1a2540;
+    margin-bottom: 8px;
+    margin-top: 4px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    border-left: 3.5px solid #049a8a;
+    padding-left: 10px;
+    line-height: 1.3;
 }
 .up-section-tag::after { content: ""; flex: 1; height: 1px; background: #dde5ef; }
 .up-card {
@@ -194,17 +194,88 @@ _UPLOAD_CSS = """
 }
 .up-card:hover { border-color: #049a8a; }
 .up-card-desc  { font-size: 11px; color: #8a9ab0; margin-bottom: 6px; line-height: 1.5; }
-.badge-ok   { display:inline-block; background:#e6f9f0; color:#1a7a4a; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
-.badge-warn { display:inline-block; background:#fff4e0; color:#b06000; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
-.badge-info { display:inline-block; background:#e8f4fd; color:#1a5a8a; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+.badge-ok      { display:inline-block; background:#e6f9f0; color:#1a7a4a; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+.badge-warn    { display:inline-block; background:#fff4e0; color:#b06000; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+.badge-info    { display:inline-block; background:#e8f4fd; color:#1a5a8a; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
+.badge-cached  { display:inline-block; background:#f0eeff; color:#4a35a0; font-size:10px; font-weight:600; padding:2px 8px; border-radius:20px; }
 .lp-divider { border:none; border-top:1.5px solid #e8edf3; margin: 16px 0; }
 </style>
 """
 
+_PIPELINE_STEPS = [
+    "Reading Availability workbook",
+    "Validating and cleaning sheets",
+    "Parsing Overdue Fiori export",
+    "Applying transformation rules",
+    "Finalising output dataframes",
+]
+
+
+def _render_overlay(slot, step_index: int):
+    total = len(_PIPELINE_STEPS)
+    pct   = int((step_index / total) * 100)
+
+    rows_html = ""
+    for i, label in enumerate(_PIPELINE_STEPS):
+        if i < step_index:
+            dot_bg     = "#049a8a"
+            dot_border = "#049a8a"
+            row_color  = "#049a8a"
+            row_weight = "600"
+            icon       = "&#10003;"
+        elif i == step_index:
+            dot_bg     = "#ffffff"
+            dot_border = "#049a8a"
+            row_color  = "#1a2540"
+            row_weight = "700"
+            icon       = ""
+        else:
+            dot_bg     = "#e8edf3"
+            dot_border = "#dde5ef"
+            row_color  = "#b0bac8"
+            row_weight = "400"
+            icon       = ""
+
+        rows_html += (
+            f'<div style="display:flex;align-items:center;gap:12px;padding:5px 0;'
+            f'color:{row_color};font-weight:{row_weight};">'
+            f'<div style="width:18px;height:18px;border-radius:50%;flex-shrink:0;'
+            f'background:{dot_bg};border:2px solid {dot_border};'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'font-size:10px;color:#fff;">{icon}</div>'
+            f'{label}'
+            f'</div>'
+        )
+
+    slot.markdown(
+        f'<div style="position:fixed;inset:0;background:rgba(15,23,40,0.62);'
+        f'backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);'
+        f'display:flex;align-items:center;justify-content:center;z-index:99999;">'
+        f'<div style="background:#ffffff;border-radius:18px;padding:38px 44px 34px 44px;'
+        f'width:440px;box-shadow:0 28px 72px rgba(4,154,138,0.20),0 4px 20px rgba(0,0,0,0.14);">'
+        f'<div style="font-size:10px;font-weight:700;letter-spacing:2.5px;'
+        f'text-transform:uppercase;color:#049a8a;margin-bottom:6px;">'
+        f'Credit Automate · ETL Pipeline</div>'
+        f'<div style="font-size:1.25rem;font-weight:800;color:#1a2540;'
+        f'margin-bottom:22px;line-height:1.2;">Processing your data...</div>'
+        f'<div style="display:flex;justify-content:space-between;'
+        f'align-items:center;margin-bottom:6px;">'
+        f'<div style="font-size:11px;color:#8a9ab0;">Progress</div>'
+        f'<div style="font-size:12px;font-weight:700;color:#049a8a;">{pct}%</div>'
+        f'</div>'
+        f'<div style="width:100%;height:7px;background:#e8edf3;'
+        f'border-radius:99px;overflow:hidden;margin-bottom:22px;">'
+        f'<div style="height:100%;width:{pct}%;'
+        f'background:linear-gradient(90deg,#049a8a,#5bbfb5);border-radius:99px;"></div>'
+        f'</div>'
+        f'{rows_html}'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+
 
 def render():
     st.markdown(_UPLOAD_CSS, unsafe_allow_html=True)
-
     hero_col, upload_col = st.columns([1.1, 1], gap="large")
 
     with hero_col:
@@ -229,7 +300,6 @@ def render():
     with upload_col:
         st.markdown('<div class="up-section-tag">Step 1 · Availability Source</div>', unsafe_allow_html=True)
         st.markdown('<div class="up-card"><div class="up-card-desc">Credit Availability master file — one workbook with customer sheets</div>', unsafe_allow_html=True)
-
         avail_file = st.file_uploader(
             "Drag & drop or browse",
             type=["xlsx", "xls"],
@@ -238,16 +308,30 @@ def render():
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ── ตรวจว่าไฟล์เปลี่ยนจริงหรือเปล่า ──
-        prev_avail_name = st.session_state.get("_prev_avail_name")
-        curr_avail_name = avail_file.name if avail_file else None
-        if curr_avail_name != prev_avail_name:
-            st.session_state["_prev_avail_name"] = curr_avail_name
-            _reset_pipeline_state()
+        if avail_file is not None:
+            new_name  = avail_file.name
+            new_bytes = avail_file.read()
+            avail_file.seek(0)
+            if st.session_state.get("_cached_avail_name") != new_name:
+                st.session_state["_cached_avail_name"]  = new_name
+                st.session_state["_cached_avail_bytes"] = new_bytes
+                _reset_pipeline_state()
+            avail_src      = io.BytesIO(st.session_state["_cached_avail_bytes"])
+            avail_src.name = st.session_state["_cached_avail_name"]
+        elif st.session_state.get("_cached_avail_bytes"):
+            avail_src      = io.BytesIO(st.session_state["_cached_avail_bytes"])
+            avail_src.name = st.session_state["_cached_avail_name"]
+            st.markdown(
+                f'<span class="badge-cached">Cached: {st.session_state["_cached_avail_name"]}</span>',
+                unsafe_allow_html=True,
+            )
+        else:
+            avail_src = None
 
         selected_sheets = []
-        if avail_file:
-            valid_sheets, invalid_sheets = analyze_excel_sheets(avail_file)
+        if avail_src is not None:
+            avail_src.seek(0)
+            valid_sheets, invalid_sheets = analyze_excel_sheets(avail_src)
             if invalid_sheets:
                 st.markdown(
                     f'<span class="badge-warn">Missing Customer Code: {", ".join(invalid_sheets)}</span>',
@@ -269,7 +353,6 @@ def render():
 
         st.markdown('<div class="up-section-tag">Step 2 · Overdue Source (Fiori)</div>', unsafe_allow_html=True)
         st.markdown('<div class="up-card"><div class="up-card-desc">One or more Fiori export files — latest file date used automatically</div>', unsafe_allow_html=True)
-
         overdue_files = st.file_uploader(
             "Drag & drop or browse",
             type=["xlsx", "xls"],
@@ -279,22 +362,41 @@ def render():
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # ── ตรวจว่า overdue files เปลี่ยนจริงหรือเปล่า ──
-        prev_overdue_names = st.session_state.get("_prev_overdue_names")
-        curr_overdue_names = tuple(sorted(f.name for f in overdue_files)) if overdue_files else ()
-        if curr_overdue_names != prev_overdue_names:
-            st.session_state["_prev_overdue_names"] = curr_overdue_names
-            _reset_pipeline_state()
-
         if overdue_files:
+            curr_names = tuple(sorted(f.name for f in overdue_files))
+            if st.session_state.get("_cached_overdue_names") != curr_names:
+                st.session_state["_cached_overdue_names"] = curr_names
+                st.session_state["_cached_overdue_data"]  = [
+                    (f.name, f.read()) for f in overdue_files
+                ]
+                _reset_pipeline_state()
+            overdue_src = [
+                _make_bytesio(name, data)
+                for name, data in st.session_state["_cached_overdue_data"]
+            ]
+        elif st.session_state.get("_cached_overdue_data"):
+            overdue_src  = [
+                _make_bytesio(name, data)
+                for name, data in st.session_state["_cached_overdue_data"]
+            ]
+            cached_names = ", ".join(
+                n for n, _ in st.session_state["_cached_overdue_data"]
+            )
             st.markdown(
-                f'<span class="badge-info">{len(overdue_files)} file(s) uploaded — latest used automatically</span>',
+                f'<span class="badge-cached">Cached: {cached_names}</span>',
+                unsafe_allow_html=True,
+            )
+        else:
+            overdue_src = []
+
+        if overdue_src:
+            st.markdown(
+                f'<span class="badge-info">{len(overdue_src)} file(s) ready — latest used automatically</span>',
                 unsafe_allow_html=True,
             )
 
         st.markdown("<hr class='lp-divider'>", unsafe_allow_html=True)
 
-        # ── pipeline already done — แสดง status แทน button ──
         if st.session_state.get("data_processed"):
             st.markdown(
                 "<div style='background:#e6f9f0;border:1.5px solid #a3d9b8;border-radius:8px;"
@@ -308,31 +410,39 @@ def render():
                 st.rerun()
             return
 
-        ready = bool(avail_file and selected_sheets and overdue_files)
-
+        ready = bool(avail_src and selected_sheets and overdue_src)
         if ready:
             if st.button("Run Pipeline", type="primary", use_container_width=True):
-                with st.spinner("Processing and transforming data..."):
-                    try:
-                        df_a, df_o, latest_name, debug_info = run_pipeline(
-                            avail_file, selected_sheets, overdue_files
-                        )
-                        st.session_state.df_avail            = df_a
-                        st.session_state.df_overdue          = df_o
-                        st.session_state.latest_overdue_name = latest_name
-                        st.session_state.debug_info_dict     = debug_info
-                        st.session_state.selected_sheets     = selected_sheets
-                        st.session_state.data_processed      = True
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Pipeline error: {e}")
+                overlay = st.empty()
+                total   = len(_PIPELINE_STEPS)
+                try:
+                    for step in range(total):
+                        _render_overlay(overlay, step)
+                        if step == total - 1:
+                            avail_src.seek(0)
+                            for f in overdue_src:
+                                f.seek(0)
+                            df_a, df_o, latest_name, debug_info = run_pipeline(
+                                avail_src, selected_sheets, overdue_src
+                            )
+                    overlay.empty()
+                    st.session_state.df_avail            = df_a
+                    st.session_state.df_overdue          = df_o
+                    st.session_state.latest_overdue_name = latest_name
+                    st.session_state.debug_info_dict     = debug_info
+                    st.session_state.selected_sheets     = selected_sheets
+                    st.session_state.data_processed      = True
+                    st.rerun()
+                except Exception as e:
+                    overlay.empty()
+                    st.error(f"Pipeline error: {e}")
         else:
             missing = []
-            if not avail_file:
+            if not avail_src:
                 missing.append("Availability file")
             elif not selected_sheets:
                 missing.append("sheet selection")
-            if not overdue_files:
+            if not overdue_src:
                 missing.append("Overdue file(s)")
             st.markdown(
                 f"<div style='background:#f4f6fa;border:1.5px solid #dde5ef;border-radius:8px;"
@@ -340,3 +450,9 @@ def render():
                 f"Waiting for: {' · '.join(missing)}</div>",
                 unsafe_allow_html=True,
             )
+
+
+def _make_bytesio(name: str, data: bytes) -> io.BytesIO:
+    buf      = io.BytesIO(data)
+    buf.name = name
+    return buf
