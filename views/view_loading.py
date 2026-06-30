@@ -407,7 +407,7 @@ def render():
             )
             if st.button("Re-run Pipeline", use_container_width=True):
                 _reset_pipeline_state()
-                st.rerun()
+                st.session_state["_trigger_rerun"] = True
             return
 
         ready = bool(avail_src and selected_sheets and overdue_src)
@@ -432,7 +432,7 @@ def render():
                     st.session_state.debug_info_dict     = debug_info
                     st.session_state.selected_sheets     = selected_sheets
                     st.session_state.data_processed      = True
-                    st.rerun()
+                    st.session_state["_trigger_rerun"]   = True
                 except Exception as e:
                     overlay.empty()
                     st.error(f"Pipeline error: {e}")
@@ -450,6 +450,9 @@ def render():
                 f"Waiting for: {' · '.join(missing)}</div>",
                 unsafe_allow_html=True,
             )
+
+    if st.session_state.pop("_trigger_rerun", False):
+        st.rerun()
 
 
 def _make_bytesio(name: str, data: bytes) -> io.BytesIO:

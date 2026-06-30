@@ -82,39 +82,47 @@ def _inject_nav_highlight(active_page: str):
     st.markdown(
         f"""
         <style>
-        /* reset ทุกปุ่มใน sidebar กลับเป็น secondary */
         [data-testid="stSidebar"] button {{
             background-color: transparent !important;
-            color: inherit !important;
+            color: #31333F !important;
             border-color: rgba(49,51,63,0.2) !important;
+            transition: background-color 0.15s ease, color 0.15s ease;
         }}
-        /* active button */
-        [data-testid="stSidebar"] button[data-active="true"] {{
-            background-color: #129989 !important;
-            color: white !important;
-            border-color: #129989 !important;
+        [data-testid="stSidebar"] button.nav-active {{
+            background-color: #4A9EAF !important;   /* teal-blue ไม่เข้มเกิน */
+            color: #ffffff !important;
+            border-color: #4A9EAF !important;
+            font-weight: 600 !important;
+            box-shadow: 0 2px 8px rgba(74,158,175,0.35) !important;
         }}
         </style>
         <script>
         (function() {{
             const TARGET = {label!r};
+
             function applyHighlight() {{
                 const sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
                 if (!sidebar) return;
                 sidebar.querySelectorAll('button').forEach(btn => {{
-                    if (btn.innerText.trim() === TARGET) {{
-                        btn.setAttribute('data-active', 'true');
+                    const txt = btn.innerText.trim();
+                    if (txt === TARGET) {{
+                        btn.classList.add('nav-active');
                     }} else {{
-                        btn.removeAttribute('data-active');
+                        btn.classList.remove('nav-active');
                     }}
                 }});
             }}
+
+            /* รัน immediately + รอ DOM settle */
             applyHighlight();
-            const obs = new MutationObserver(applyHighlight);
-            obs.observe(
-                window.parent.document.querySelector('[data-testid="stSidebar"]') || window.parent.document.body,
-                {{childList: true, subtree: true}}
-            );
+            setTimeout(applyHighlight, 80);
+            setTimeout(applyHighlight, 300);
+
+            /* watch DOM mutation (Streamlit re-renders) */
+            const root = window.parent.document.querySelector('[data-testid="stSidebar"]')
+                      || window.parent.document.body;
+            const obs = new MutationObserver(() => applyHighlight());
+            obs.observe(root, {{childList: true, subtree: true}});
         }})();
         </script>
         """,
@@ -125,41 +133,50 @@ def _inject_nav_highlight(active_page: str):
 # =============================================================================
 # Sidebar — ทุกปุ่มใช้ type="secondary" เสมอ, highlight ผ่าน JS
 # =============================================================================
+# sidebar buttons — active page ใช้ type="primary", ที่เหลือ "secondary"
 with st.sidebar:
     _render_logo()
 
     _nav_section("Data Pipeline")
-    if st.button("Loading and Processing Data", key="nav_loading",
-                 use_container_width=True, type="secondary"):
-        _navigate("loading")
+    st.button("Loading and Processing Data", key="nav_loading",
+              use_container_width=True,
+              type="primary" if st.session_state.active_page == "loading" else "secondary",
+              on_click=_navigate, args=("loading",))
 
-    if st.button("Transformed and Preview Data", key="nav_transform",
-                 use_container_width=True, type="secondary"):
-        _navigate("transform")
+    st.button("Transformed and Preview Data", key="nav_transform",
+              use_container_width=True,
+              type="primary" if st.session_state.active_page == "transform" else "secondary",
+              on_click=_navigate, args=("transform",))
 
     if st.session_state.data_processed:
         _nav_section("Analytics Dashboard")
-        if st.button("Credit Availability", key="nav_avail",
-                     use_container_width=True, type="secondary"):
-            _navigate("avail")
+        st.button("Credit Availability", key="nav_avail",
+                  use_container_width=True,
+                  type="primary" if st.session_state.active_page == "avail" else "secondary",
+                  on_click=_navigate, args=("avail",))
 
-        if st.button("Credit Overdue", key="nav_overdue_dash",
-                     use_container_width=True, type="secondary"):
-            _navigate("overdue_dash")
+        st.button("Credit Overdue", key="nav_overdue_dash",
+                  use_container_width=True,
+                  type="primary" if st.session_state.active_page == "overdue_dash" else "secondary",
+                  on_click=_navigate, args=("overdue_dash",))
 
-        if st.button("Credit Monitoring", key="nav_monitoring",
-                     use_container_width=True, type="secondary"):
-            _navigate("monitoring")
+        st.button("Credit Monitoring", key="nav_monitoring",
+                  use_container_width=True,
+                  type="primary" if st.session_state.active_page == "monitoring" else "secondary",
+                  on_click=_navigate, args=("monitoring",))
 
         _nav_section("Jelly Section")
-        if st.button("Overdue Daily", key="nav_overdue_daily",
-                     use_container_width=True, type="secondary"):
-            _navigate("overdue_daily")
+        st.button("Overdue Daily", key="nav_overdue_daily",
+                  use_container_width=True,
+                  type="primary" if st.session_state.active_page == "overdue_daily" else "secondary",
+                  on_click=_navigate, args=("overdue_daily",))
 
         _nav_section("PNONG Section")
-        if st.button("Credit Summary", key="nav_credit_summary",
-                     use_container_width=True, type="secondary"):
-            _navigate("credit_summary")
+        st.button("Credit Summary", key="nav_credit_summary",
+                  use_container_width=True,
+                  type="primary" if st.session_state.active_page == "credit_summary" else "secondary",
+                  on_click=_navigate, args=("credit_summary",))
+
 
 # inject หลัง sidebar render เสร็จ — อ่านจาก active_page ที่ commit แล้ว
 _inject_nav_highlight(st.session_state.active_page)
