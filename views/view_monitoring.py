@@ -60,9 +60,11 @@ LABEL_STYLE = (
 def _scale_thb(value: float):
     """
     Return (scaled_value, unit_label) โดย detect จาก magnitude จริงก่อน
-    ไม่ trunc ก่อนรู้หน่วย
+    ไม่ trunc ก่อนรู้หน่วย — รองรับ Baht ถึง Trillion
     """
     abs_val = abs(value)
+    if abs_val >= 1_000_000_000_000:
+        return value / 1_000_000_000_000, "Trillion Baht"
     if abs_val >= 1_000_000_000:
         return value / 1_000_000_000, "Billion Baht"
     if abs_val >= 1_000_000:
@@ -73,17 +75,13 @@ def _scale_thb(value: float):
 
 
 def _fmt_thb(value: float, view_type: str) -> str:
-    """
-    Rounded : scale ลง + floor 1 decimal + หน่วย
-              23,118,892,135 → 23.1 Billion Baht
-    Detail  : เลขเต็มทุกหลัก .2f + หน่วยบอก magnitude (ไม่ scale)
-              23,118,892,135 → 23,118,892,135.00 Baht
-              (ไม่เขียนว่า Billion เพราะเลขไม่ได้ scale)
-    """
     import math
     abs_val = abs(value)
 
     if view_type == "Rounded Number":
+        if abs_val >= 1_000_000_000_000:
+            floored = math.floor(value / 1_000_000_000_000 * 10) / 10
+            return f"{floored:,.1f} Trillion Baht"
         if abs_val >= 1_000_000_000:
             floored = math.floor(value / 1_000_000_000 * 10) / 10
             return f"{floored:,.1f} Billion Baht"
@@ -93,9 +91,12 @@ def _fmt_thb(value: float, view_type: str) -> str:
         if abs_val >= 1_000:
             floored = math.floor(value / 1_000 * 10) / 10
             return f"{floored:,.1f} Thousand Baht"
-        return f"{math.floor(value * 10) / 10:,.1f} Baht"
+        if abs_val >= 1:
+            floored = math.floor(value * 10) / 10
+            return f"{floored:,.1f} Baht"
+        # < 1 Baht — แสดง 2 decimal เพื่อไม่ให้ floor เป็น 0
+        return f"{value:,.2f} Baht"
     else:
-        # Detail: เลขเต็ม .2f + "Baht" เท่านั้น ไม่ scale ไม่เขียน Billion/Million
         return f"{value:,.2f} Baht"
 
 
@@ -115,15 +116,14 @@ def _fmt_count(value: int, view_type: str) -> str:
     return f"{value:,}"
 
 
+
 def _fmt_bar_mon(value: float, view_type: str) -> str:
-    """
-    สำหรับ chart bar/axis label — ไม่มี unit suffix ยาว
-    Rounded : detect magnitude → 1 decimal + suffix สั้น (B/M/K)
-    Detail  : comma + .2f ไม่ scale
-    """
     import math
     if view_type == "Rounded Number":
         abs_val = abs(value)
+        if abs_val >= 1_000_000_000_000:
+            floored = math.floor(value / 1_000_000_000_000 * 10) / 10
+            return f"{floored:.1f}T"
         if abs_val >= 1_000_000_000:
             floored = math.floor(value / 1_000_000_000 * 10) / 10
             return f"{floored:.1f}B"
@@ -133,9 +133,12 @@ def _fmt_bar_mon(value: float, view_type: str) -> str:
         if abs_val >= 1_000:
             floored = math.floor(value / 1_000 * 10) / 10
             return f"{floored:.1f}K"
-        return f"{math.floor(value * 10) / 10:.1f}"
+        if abs_val >= 1:
+            floored = math.floor(value * 10) / 10
+            return f"{floored:.1f}"
+        # < 1 — แสดง 2 decimal
+        return f"{value:.2f}"
     return f"{value:,.2f}"
-
 
 # =============================================================================
 # KPI card HTML — same pattern as view_overdue._overdue_kpi_card

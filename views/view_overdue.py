@@ -53,36 +53,63 @@ LABEL_STYLE = (
 
 
 def _fmt_thb(value: float, view_type: str) -> str:
+    """
+    Rounded : detect magnitude → floor 1 decimal → หน่วยเต็ม (ไม่ปัดขึ้น)
+    Detail  : เลขดิบทุกหลัก .2f + หน่วย Baht (ไม่ scale ไม่มี Billion/Million)
+    Auto-scale ทุก magnitude — future-proof
+    """
+    import math
+    abs_val = abs(value)
+
     if view_type == "Rounded Number":
-        if abs(value) >= 1_000_000_000:
-            return f"{round(value / 1_000_000_000):,} Billion Baht"
-        if abs(value) >= 1_000_000:
-            return f"{round(value / 1_000_000):,} Million Baht"
-        return f"{round(value):,} Baht"
+        if abs_val >= 1_000_000_000_000:            # Trillion+
+            floored = math.floor(value / 1_000_000_000_000 * 10) / 10
+            return f"{floored:,.1f} Trillion Baht"
+        if abs_val >= 1_000_000_000:                # Billion
+            floored = math.floor(value / 1_000_000_000 * 10) / 10
+            return f"{floored:,.1f} Billion Baht"
+        if abs_val >= 1_000_000:                    # Million
+            floored = math.floor(value / 1_000_000 * 10) / 10
+            return f"{floored:,.1f} Million Baht"
+        if abs_val >= 1_000:                        # Thousand
+            floored = math.floor(value / 1_000 * 10) / 10
+            return f"{floored:,.1f} Thousand Baht"
+        return f"{math.floor(value * 10) / 10:,.1f} Baht"
     else:
-        if abs(value) >= 1_000_000_000:
-            return f"{value / 1_000_000_000:,.2f} Billion Baht"
-        if abs(value) >= 1_000_000:
-            return f"{value / 1_000_000:,.2f} Million Baht"
+        # Detail: เลขดิบทุกหลัก .2f + "Baht" — ไม่ scale ไม่ว่าเลขจะมากแค่ไหน
         return f"{value:,.2f} Baht"
+
+
+def _fmt_bar(value: float, view_type: str) -> str:
+    """
+    Bar/chart label — input unit = THB (raw)
+    Rounded : detect magnitude → floor 1 decimal → suffix สั้น
+    Detail  : เลขดิบ .2f + THB
+    Auto-scale ทุก magnitude
+    """
+    import math
+    abs_val = abs(value)
+
+    if view_type == "Rounded Number":
+        if abs_val >= 1_000_000_000_000:
+            floored = math.floor(value / 1_000_000_000_000 * 10) / 10
+            return f"{floored:,.1f}T"
+        if abs_val >= 1_000_000_000:
+            floored = math.floor(value / 1_000_000_000 * 10) / 10
+            return f"{floored:,.1f}B"
+        if abs_val >= 1_000_000:
+            floored = math.floor(value / 1_000_000 * 10) / 10
+            return f"{floored:,.1f}M"
+        if abs_val >= 1_000:
+            floored = math.floor(value / 1_000 * 10) / 10
+            return f"{floored:,.1f}K"
+        return f"{math.floor(value * 10) / 10:,.1f}"
+    else:
+        return f"{value:,.2f} THB"
 
 
 def _fmt_count(value: int, view_type: str) -> str:
     return f"{value:,}"
-
-def _fmt_bar(value: float, view_type: str) -> str:
-    """Bar/chart label — Rounded: smart scale with unit, Detail: raw number with commas."""
-    if view_type == "Rounded Number":
-        if abs(value) >= 1_000_000_000:
-            return f"{round(value / 1_000_000_000):,} Billion Baht"
-        if abs(value) >= 1_000_000:
-            return f"{round(value / 1_000_000):,} Million Baht"
-        if abs(value) >= 1_000:
-            return f"{round(value / 1_000):,}K Baht"
-        return f"{round(value):,} Baht"
-    else:
-        return f"{value:,.2f}"
-
 
 # =============================================================================
 # PUBLIC ENTRY POINT

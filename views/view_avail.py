@@ -60,26 +60,70 @@ TYPE_LABEL_MAP = {
 # Helpers — number formatting
 # =============================================================================
 def _fmt(value: float, view_type: str) -> str:
+    """
+    input unit = Million Baht (MB)
+    ออกแบบให้ scale ได้ทุก magnitude:
+      Rounded : detect → floor 1 decimal → หน่วยเต็ม
+      Detail  : เลขดิบ .2f → detect → หน่วยเต็ม (ไม่ scale เพราะ input = MB)
+    """
+    import math
+    abs_val = abs(value)
+
     if view_type == "Rounded Number":
-        if abs(value) >= 1_000:
-            return f"{round(value / 1_000):,} Billion Baht"
-        return f"{round(value):,} Million Baht"
+        if abs_val >= 1_000_000:          # >= 1 Trillion MB (ไม่น่าเกิด แต่ future-proof)
+            floored = math.floor(value / 1_000_000 * 10) / 10
+            return f"{floored:,.1f} Quadrillion Baht"
+        if abs_val >= 1_000:              # >= 1,000 MB = 1 Billion Baht
+            floored = math.floor(value / 1_000 * 10) / 10
+            return f"{floored:,.1f} Billion Baht"
+        if abs_val >= 1:                  # >= 1 MB = 1 Million Baht
+            floored = math.floor(value * 10) / 10
+            return f"{floored:,.1f} Million Baht"
+        if abs_val >= 0.001:              # >= 0.001 MB = 1,000 Baht
+            floored = math.floor(value * 1_000 * 10) / 10
+            return f"{floored:,.1f} Thousand Baht"
+        return f"{math.floor(value * 1_000_000 * 10) / 10:,.1f} Baht"
     else:
-        if abs(value) >= 1_000:
-            return f"{value / 1_000:,.2f} Billion Baht"
-        return f"{value:,.2f} Million Baht"
+        # Detail: input = MB → แสดงเลขดิบ + บอกหน่วยตาม magnitude
+        if abs_val >= 1_000:
+            return f"{value:,.2f} Million Baht"   # ยังเป็น MB ไม่ scale
+        if abs_val >= 1:
+            return f"{value:,.2f} Million Baht"
+        if abs_val >= 0.001:
+            return f"{value * 1_000:,.2f} Thousand Baht"
+        return f"{value * 1_000_000:,.2f} Baht"
 
 
 def _fmt_plain(value: float, view_type: str) -> str:
-    if view_type == "Rounded Number":
-        if abs(value) >= 1_000:
-            return f"{round(value / 1_000):,}B"
-        return f"{round(value):,}M"
-    else:
-        if abs(value) >= 1_000:
-            return f"{value / 1_000:,.2f}B"
-        return f"{value:,.2f}M"
+    """
+    Bar label สั้น — input unit = Million Baht
+    Scale ได้ทุก magnitude
+    """
+    import math
+    abs_val = abs(value)
 
+    if view_type == "Rounded Number":
+        if abs_val >= 1_000_000:
+            floored = math.floor(value / 1_000_000 * 10) / 10
+            return f"{floored:,.1f}Q"
+        if abs_val >= 1_000:
+            floored = math.floor(value / 1_000 * 10) / 10
+            return f"{floored:,.1f}B"
+        if abs_val >= 1:
+            floored = math.floor(value * 10) / 10
+            return f"{floored:,.1f}M"
+        if abs_val >= 0.001:
+            floored = math.floor(value * 1_000 * 10) / 10
+            return f"{floored:,.1f}K"
+        return f"{math.floor(value * 1_000_000 * 10) / 10:,.1f}"
+    else:
+        if abs_val >= 1_000:
+            return f"{value:,.2f} MB"
+        if abs_val >= 1:
+            return f"{value:,.2f} MB"
+        if abs_val >= 0.001:
+            return f"{value * 1_000:,.2f} KB"
+        return f"{value * 1_000_000:,.2f}"
 
 def _fmt_pct(value: float, view_type: str) -> str:
     """Format percentage — Round: floor to int (no rounding), Detail: 2dp."""
@@ -120,7 +164,7 @@ def render():
 
     r2_left, r2_right = st.columns([3.2, 1.1], gap="medium")
     with r2_left:
-        top_n = _render_debt_pct_bar(df, view_type)        # <-- pass view_type
+        top_n = _render_debt_pct_bar(df, view_type)
     with r2_right:
         _render_risk_pie(df)
 
@@ -128,9 +172,9 @@ def render():
     st.markdown(section_header("Distribution and Trend"), unsafe_allow_html=True)
     r3_left, r3_right = st.columns([1, 1.6], gap="medium")
     with r3_left:
-        _render_debt_by_type(df, view_type)                # <-- pass view_type
+        _render_debt_by_type(df, view_type)
     with r3_right:
-        _render_trend(df, granularity, view_type)          # <-- pass view_type
+        _render_trend(df, granularity, view_type)
     st.markdown("", unsafe_allow_html=True)
 
     st.markdown(section_header("Customer Credit Risk Preview"), unsafe_allow_html=True)
@@ -138,8 +182,7 @@ def render():
     st.markdown("", unsafe_allow_html=True)
 
     st.markdown(section_header("Customer Trend Analysis"), unsafe_allow_html=True)
-    _render_trend_analysis(df_raw, granularity, selected_years, view_type)  # <-- pass view_type
-
+    _render_trend_analysis(df_raw, granularity, selected_years, view_type) 
 
 # =============================================================================
 # Data preparation
@@ -626,13 +669,13 @@ def _render_debt_by_type(df: pd.DataFrame, view_type: str):
             marker_color=color,
             text=[bar_label],
             textposition="outside", cliponaxis=False,
-            textfont=dict(size=9, color=FONT_COLOR, family="Inter, sans-serif"),
+            textfont=dict(size=15, color=FONT_COLOR, family="Inter, sans-serif"),
             hovertemplate="<br>".join(hover_lines) + "<extra></extra>",
         ))
 
     apply_base_layout(fig, {
-        "height": 280,
-        "margin": dict(l=0, r=8, t=4, b=4),
+        "height": 300,         
+        "margin": dict(l=0, r=8, t=24, b=4),  
         "barmode": "group",
         "xaxis": dict(
             title="Product Type",
@@ -1001,7 +1044,7 @@ def _render_trend_analysis(df_raw: pd.DataFrame, main_granularity: str,
             if col_name in df_scoped.columns:
                 v = lr.get(col_name)
                 if pd.notna(v):
-                    kpi_blocks.append((label, f"฿{float(v):,.1f}M", FONT_COLOR))
+                    kpi_blocks.append((label, _fmt(float(v), view_type), FONT_COLOR))
 
     card_style = (
         "background:#f0f4fa;border-radius:8px;padding:8px 16px;"
