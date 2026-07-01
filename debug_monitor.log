@@ -1,0 +1,432 @@
+2026-07-01 10:45:13  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 10:45:13  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 10:45:13  [filter:final] rows returned=13856
+2026-07-01 10:45:27  [filter:start] company=1190 | due_year=2025 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 10:45:27  [filter:due_year] target=2025 | DueYear distribution in df (after company filter): {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 10:45:27  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 10:45:27  [filter:due_year] after filter rows=8038 (from 13856) | match=True
+2026-07-01 10:45:27  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 10:45:27  [filter:avail_match] exact match → 2025
+2026-07-01 10:45:27  [filter:avail_snap] matched_avail_year=2025 | avail_for_year rows=935
+2026-07-01 10:45:27  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 1, 1), datetime.date(2026, 1, 1), datetime.date(2026, 1, 1), datetime.date(2026, 1, 1), datetime.date(2026, 1, 1)] | null_count=0
+2026-07-01 10:45:27  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 10:45:27  [filter:merge] rows_before=8038 | rows_after_merge=8038 | join_null (no avail match)=20
+2026-07-01 10:45:27  [filter:merge] CLEAN_CREDIT_MB null after merge=20 — OK
+2026-07-01 10:45:28  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 10:45:28  [filter:tier] RiskTier distribution after re-assign: {'Healthy': 6199, 'Watch': 1629, 'High Risk': 210}
+2026-07-01 10:45:28  [filter:end] selected_due_year=2025 | selected_tier=All | rows_before_tier_filter=8038
+2026-07-01 10:45:28  [filter:final] rows returned=8038
+2026-07-01 10:45:35  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 10:45:35  [filter:due_year] target=2024 | DueYear distribution in df (after company filter): {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 10:45:35  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 10:45:35  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 10:45:35  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 10:45:35  [filter:avail_match] exact match → 2024
+2026-07-01 10:45:35  [filter:avail_snap] matched_avail_year=2024 | avail_for_year rows=930
+2026-07-01 10:45:35  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 10:45:35  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 10:45:35  [filter:merge] rows_before=518 | rows_after_merge=518 | join_null (no avail match)=1
+2026-07-01 10:45:35  [filter:merge] CLEAN_CREDIT_MB null after merge=1 — OK
+2026-07-01 10:45:35  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 10:45:35  [filter:tier] RiskTier distribution after re-assign: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 10:45:35  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 10:45:35  [filter:final] rows returned=518
+2026-07-01 11:05:12  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:05:12  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 11:05:12  [filter:final] rows returned=13856
+2026-07-01 11:07:49  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:07:49  [filter:due_year] target=2024 | DueYear distribution in df (after company filter): {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:07:49  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:07:49  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:07:49  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:07:49  [filter:avail_match] exact match → 2024
+2026-07-01 11:07:49  [filter:avail_snap] matched_avail_year=2024 | avail_for_year rows=930
+2026-07-01 11:07:49  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:07:49  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:07:49  [filter:merge] rows_before=518 | rows_after_merge=518 | join_null (no avail match)=1
+2026-07-01 11:07:49  [filter:merge] CLEAN_CREDIT_MB null after merge=1 — OK
+2026-07-01 11:07:49  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:07:49  [filter:tier] RiskTier distribution after re-assign: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:07:49  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:07:49  [filter:final] rows returned=518
+2026-07-01 11:07:55  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:07:55  [filter:due_year] target=2024 | DueYear distribution in df (after company filter): {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:07:55  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:07:55  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:07:55  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:07:55  [filter:avail_match] exact match → 2024
+2026-07-01 11:07:55  [filter:avail_snap] matched_avail_year=2024 | avail_for_year rows=930
+2026-07-01 11:07:55  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:07:55  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:07:55  [filter:merge] rows_before=518 | rows_after_merge=518 | join_null (no avail match)=1
+2026-07-01 11:07:55  [filter:merge] CLEAN_CREDIT_MB null after merge=1 — OK
+2026-07-01 11:07:55  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:07:55  [filter:tier] RiskTier distribution after re-assign: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:07:55  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:07:55  [filter:final] rows returned=518
+2026-07-01 11:07:59  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:07:59  [filter:due_year] target=2024 | DueYear distribution in df (after company filter): {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:07:59  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:07:59  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:07:59  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:07:59  [filter:avail_match] exact match → 2024
+2026-07-01 11:07:59  [filter:avail_snap] matched_avail_year=2024 | avail_for_year rows=930
+2026-07-01 11:07:59  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:07:59  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:07:59  [filter:merge] rows_before=518 | rows_after_merge=518 | join_null (no avail match)=1
+2026-07-01 11:07:59  [filter:merge] CLEAN_CREDIT_MB null after merge=1 — OK
+2026-07-01 11:07:59  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:07:59  [filter:tier] RiskTier distribution after re-assign: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:07:59  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:07:59  [filter:final] rows returned=518
+2026-07-01 11:08:00  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:08:00  [filter:due_year] target=2024 | DueYear distribution in df (after company filter): {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:08:00  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:08:00  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:08:00  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:08:00  [filter:avail_match] exact match → 2024
+2026-07-01 11:08:00  [filter:avail_snap] matched_avail_year=2024 | avail_for_year rows=930
+2026-07-01 11:08:00  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:08:00  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:08:00  [filter:merge] rows_before=518 | rows_after_merge=518 | join_null (no avail match)=1
+2026-07-01 11:08:00  [filter:merge] CLEAN_CREDIT_MB null after merge=1 — OK
+2026-07-01 11:08:01  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:08:01  [filter:tier] RiskTier distribution after re-assign: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:08:01  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:08:01  [filter:final] rows returned=518
+2026-07-01 11:18:51  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:18:51  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 11:18:51  [filter:final] rows returned=13856
+2026-07-01 11:19:10  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:19:10  [filter:due_year] target=2024 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:19:10  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:19:10  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:19:10  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:19:10  [filter:avail_match] exact match → 2024
+2026-07-01 11:19:10  [filter:avail_snap] matched=2024 | rows=930
+2026-07-01 11:19:10  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:19:10  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:19:10  [filter:merge] rows_before=518 | rows_after=518 | join_null=1
+2026-07-01 11:19:10  [filter:merge] CLEAN_CREDIT_MB null=1 — OK
+2026-07-01 11:19:10  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:19:10  [filter:tier] RiskTier distribution: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:19:10  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:19:10  [filter:final] rows returned=518
+2026-07-01 11:19:18  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:19:18  [filter:due_year] target=2024 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:19:18  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:19:18  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:19:18  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:19:18  [filter:avail_match] exact match → 2024
+2026-07-01 11:19:18  [filter:avail_snap] matched=2024 | rows=930
+2026-07-01 11:19:18  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:19:18  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:19:18  [filter:merge] rows_before=518 | rows_after=518 | join_null=1
+2026-07-01 11:19:18  [filter:merge] CLEAN_CREDIT_MB null=1 — OK
+2026-07-01 11:19:18  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:19:18  [filter:tier] RiskTier distribution: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:19:19  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:19:19  [filter:final] rows returned=518
+2026-07-01 11:19:19  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:19:19  [filter:due_year] target=2024 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:19:19  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:19:19  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:19:19  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:19:19  [filter:avail_match] exact match → 2024
+2026-07-01 11:19:19  [filter:avail_snap] matched=2024 | rows=930
+2026-07-01 11:19:20  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:19:20  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:19:20  [filter:merge] rows_before=518 | rows_after=518 | join_null=1
+2026-07-01 11:19:20  [filter:merge] CLEAN_CREDIT_MB null=1 — OK
+2026-07-01 11:19:20  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:19:20  [filter:tier] RiskTier distribution: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:19:20  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:19:20  [filter:final] rows returned=518
+2026-07-01 11:19:21  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:19:21  [filter:due_year] target=2024 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:19:21  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:19:21  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:19:21  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:19:21  [filter:avail_match] exact match → 2024
+2026-07-01 11:19:21  [filter:avail_snap] matched=2024 | rows=930
+2026-07-01 11:19:21  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:19:21  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:19:21  [filter:merge] rows_before=518 | rows_after=518 | join_null=1
+2026-07-01 11:19:21  [filter:merge] CLEAN_CREDIT_MB null=1 — OK
+2026-07-01 11:19:21  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:19:21  [filter:tier] RiskTier distribution: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:19:21  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:19:21  [filter:final] rows returned=518
+2026-07-01 11:19:22  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:19:22  [filter:due_year] target=2024 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:19:22  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:19:22  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:19:22  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:19:22  [filter:avail_match] exact match → 2024
+2026-07-01 11:19:22  [filter:avail_snap] matched=2024 | rows=930
+2026-07-01 11:19:22  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:19:22  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:19:22  [filter:merge] rows_before=518 | rows_after=518 | join_null=1
+2026-07-01 11:19:22  [filter:merge] CLEAN_CREDIT_MB null=1 — OK
+2026-07-01 11:19:22  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:19:22  [filter:tier] RiskTier distribution: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:19:22  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:19:22  [filter:final] rows returned=518
+2026-07-01 11:20:08  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 11:20:08  [filter:due_year] target=2024 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 11:20:08  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 11:20:08  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 11:20:08  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 11:20:08  [filter:avail_match] exact match → 2024
+2026-07-01 11:20:08  [filter:avail_snap] matched=2024 | rows=930
+2026-07-01 11:20:08  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 11:20:08  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 11:20:08  [filter:merge] rows_before=518 | rows_after=518 | join_null=1
+2026-07-01 11:20:08  [filter:merge] CLEAN_CREDIT_MB null=1 — OK
+2026-07-01 11:20:08  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 11:20:08  [filter:tier] RiskTier distribution: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 11:20:08  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 11:20:08  [filter:final] rows returned=518
+2026-07-01 13:15:09  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:15:09  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:15:09  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:15:09  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:15:09  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:15:09  [filter:avail_match] exact match → 2026
+2026-07-01 13:15:09  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:15:09  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:15:09  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:15:09  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:15:09  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:15:09  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:15:09  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:15:09  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:15:09  [filter:final] rows returned=4890
+2026-07-01 13:15:36  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:15:36  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:15:36  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:15:36  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:15:36  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:15:36  [filter:avail_match] exact match → 2026
+2026-07-01 13:15:36  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:15:36  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:15:36  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:15:36  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:15:36  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:15:36  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:15:36  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:15:36  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:15:36  [filter:final] rows returned=4890
+2026-07-01 13:15:47  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:15:47  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:15:47  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:15:47  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:15:47  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:15:47  [filter:avail_match] exact match → 2026
+2026-07-01 13:15:47  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:15:47  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:15:47  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:15:47  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:15:47  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:15:47  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:15:47  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:15:47  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:15:47  [filter:final] rows returned=4890
+2026-07-01 13:15:51  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:15:51  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:15:51  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:15:51  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:15:51  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:15:51  [filter:avail_match] exact match → 2026
+2026-07-01 13:15:51  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:15:51  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:15:51  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:15:51  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:15:51  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:15:51  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:15:51  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:15:51  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:15:51  [filter:final] rows returned=4890
+2026-07-01 13:15:56  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:15:56  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:15:56  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:15:56  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:15:56  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:15:56  [filter:avail_match] exact match → 2026
+2026-07-01 13:15:56  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:15:56  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:15:56  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:15:56  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:15:56  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:15:56  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:15:56  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:15:56  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:15:56  [filter:final] rows returned=4890
+2026-07-01 13:15:59  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:15:59  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:15:59  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:15:59  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:15:59  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:15:59  [filter:avail_match] exact match → 2026
+2026-07-01 13:15:59  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:16:00  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:16:00  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:16:00  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:16:00  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:16:00  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:16:00  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:16:00  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:16:00  [filter:final] rows returned=4890
+2026-07-01 13:18:17  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:18:17  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:18:17  [filter:final] rows returned=13856
+2026-07-01 13:18:27  [filter:start] company=1190 | due_year=2024 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:18:27  [filter:due_year] target=2024 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:18:27  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:18:27  [filter:due_year] after filter rows=518 (from 13856) | match=True
+2026-07-01 13:18:27  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:18:27  [filter:avail_match] exact match → 2024
+2026-07-01 13:18:27  [filter:avail_snap] matched=2024 | rows=930
+2026-07-01 13:18:27  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1), datetime.date(2024, 12, 1)] | null_count=0
+2026-07-01 13:18:27  [filter:avail_snap] snap rows after dedup=74 | CUSTOMER_CODE sample=[6901, 2000786, 2000762, 2000755, 2000754]
+2026-07-01 13:18:27  [filter:merge] rows_before=518 | rows_after=518 | join_null=1
+2026-07-01 13:18:27  [filter:merge] CLEAN_CREDIT_MB null=1 — OK
+2026-07-01 13:18:27  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:18:27  [filter:tier] RiskTier distribution: {'Healthy': 373, 'Watch': 121, 'High Risk': 24}
+2026-07-01 13:18:27  [filter:end] selected_due_year=2024 | selected_tier=All | rows_before_tier_filter=518
+2026-07-01 13:18:27  [filter:final] rows returned=518
+2026-07-01 13:18:58  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:18:58  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:18:58  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:18:58  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:18:58  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:18:58  [filter:avail_match] exact match → 2026
+2026-07-01 13:18:58  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:18:58  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:18:58  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:18:58  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:18:58  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:18:58  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:18:58  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:18:58  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:18:58  [filter:final] rows returned=4890
+2026-07-01 13:32:44  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:32:44  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:32:44  [filter:final] rows returned=13856
+2026-07-01 13:32:55  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:32:55  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:32:55  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:32:55  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:32:55  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:32:55  [filter:avail_match] exact match → 2026
+2026-07-01 13:32:55  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:32:55  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:32:55  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:32:55  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:32:55  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:32:55  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:32:56  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:32:56  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:32:56  [filter:final] rows returned=4890
+2026-07-01 13:33:39  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:33:39  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:33:39  [filter:final] rows returned=13856
+2026-07-01 13:33:44  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:33:44  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:33:44  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:33:44  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:33:44  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:33:44  [filter:avail_match] exact match → 2026
+2026-07-01 13:33:44  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:33:44  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:33:44  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:33:44  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:33:44  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:33:44  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:33:44  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:33:44  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:33:44  [filter:final] rows returned=4890
+2026-07-01 13:35:43  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:35:43  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:35:43  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:35:43  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:35:43  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:35:43  [filter:avail_match] exact match → 2026
+2026-07-01 13:35:43  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:35:43  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:35:43  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:35:43  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:35:43  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:35:43  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:35:43  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:35:43  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:35:43  [filter:final] rows returned=4890
+2026-07-01 13:35:45  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:35:45  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:35:45  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:35:45  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:35:45  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:35:45  [filter:avail_match] exact match → 2026
+2026-07-01 13:35:45  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:35:45  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:35:45  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:35:45  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:35:45  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:35:45  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:35:45  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:35:45  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:35:45  [filter:final] rows returned=4890
+2026-07-01 13:35:53  [filter:start] company=1190 | due_year=2026 | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:35:53  [filter:due_year] target=2026 | DueYear distribution: {np.int64(2024): 518, np.int64(2025): 8038, np.int64(2026): 4890}
+2026-07-01 13:35:53  [filter:due_year] DueYear dtype=Int64 | sample (first 10): [2024, 2024, 2024, 2024, 2024, 2024, 2025, 2025, 2025, 2025]
+2026-07-01 13:35:53  [filter:due_year] after filter rows=4890 (from 13856) | match=True
+2026-07-01 13:35:53  [filter:avail_match] avail_years_available=['2023', '2024', '2025', '2026'] | avail_year_int=[2023, 2024, 2025, 2026]
+2026-07-01 13:35:53  [filter:avail_match] exact match → 2026
+2026-07-01 13:35:53  [filter:avail_snap] matched=2026 | rows=468
+2026-07-01 13:35:53  [filter:avail_snap] DATE dtype=object | sample=[datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1), datetime.date(2026, 6, 1)] | null_count=0
+2026-07-01 13:35:53  [filter:avail_snap] snap rows after dedup=75 | CUSTOMER_CODE sample=[6901, 2000699, 2000762, 2000755, 2000754]
+2026-07-01 13:35:53  [filter:merge] rows_before=4890 | rows_after=4890 | join_null=17
+2026-07-01 13:35:53  [filter:merge] CLEAN_CREDIT_MB null=17 — OK
+2026-07-01 13:35:53  [filter:util] taken from CURRENT_DEBT_MILLION_THB_PERCENT
+2026-07-01 13:35:53  [filter:tier] RiskTier distribution: {'Healthy': 2338, 'Watch': 2263, 'High Risk': 289}
+2026-07-01 13:35:53  [filter:end] selected_due_year=2026 | selected_tier=All | rows_before_tier_filter=4890
+2026-07-01 13:35:53  [filter:final] rows returned=4890
+2026-07-01 13:45:03  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:45:03  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:45:03  [filter:final] rows returned=13856
+2026-07-01 13:45:09  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:45:09  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:45:09  [filter:final] rows returned=13856
+2026-07-01 13:45:20  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:45:20  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:45:20  [filter:final] rows returned=13856
+2026-07-01 13:51:28  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:51:28  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:51:28  [filter:final] rows returned=13856
+2026-07-01 13:56:15  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:56:15  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:56:15  [filter:final] rows returned=13856
+2026-07-01 13:57:39  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:57:39  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:57:39  [filter:final] rows returned=13856
+2026-07-01 13:57:59  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 13:57:59  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 13:57:59  [filter:final] rows returned=13856
+2026-07-01 14:10:40  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 14:10:40  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 14:10:40  [filter:final] rows returned=13856
+2026-07-01 14:11:29  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 14:11:29  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 14:11:29  [filter:final] rows returned=13856
+2026-07-01 14:11:34  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 14:11:34  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 14:11:34  [filter:final] rows returned=13856
+2026-07-01 14:20:15  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 14:20:15  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 14:20:15  [filter:final] rows returned=13856
+2026-07-01 14:21:51  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 14:21:51  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 14:21:51  [filter:final] rows returned=13856
+2026-07-01 14:22:43  [filter:start] company=1190 | due_year=All | df_joined rows=15679 | after company filter rows=13856
+2026-07-01 14:22:43  [filter:end] selected_due_year=All | selected_tier=All | rows_before_tier_filter=13856
+2026-07-01 14:22:43  [filter:final] rows returned=13856

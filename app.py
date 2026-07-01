@@ -2,6 +2,7 @@
 import base64
 import os
 import streamlit as st
+from PIL import Image
 from styles import DASHBOARD_CSS
 from views.view_loading        import render as render_loading
 from views.view_transform      import render as render_transform
@@ -11,7 +12,10 @@ from views.view_monitoring     import render as render_monitoring
 from views.view_overdue_daily  import render as render_overdue_daily
 from views.view_credit_summary import render as render_credit_summary
 
-st.set_page_config(page_title="Credit Automate Dashboard", layout="wide")
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo", "logo-rm.png")
+_page_icon = Image.open(_LOGO_PATH) if os.path.exists(_LOGO_PATH) else "💳"
+
+st.set_page_config(page_title="Ciredit Management", page_icon=_page_icon, layout="wide")
 st.markdown(DASHBOARD_CSS, unsafe_allow_html=True)
 
 # =============================================================================
