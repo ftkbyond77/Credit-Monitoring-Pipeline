@@ -209,21 +209,31 @@ def _prepare(df: pd.DataFrame) -> pd.DataFrame:
 # =============================================================================
 def _dedup_for_kpi(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Within each (YEAR, MONTH) window, keep the first occurrence per CUSTOMER_CODE.
-    This prevents double-counting when one customer has multiple TYPE rows
-    sharing the same CLEAN_CREDIT_MB and CURRENT_DEBT_MILLION_THB.
+    group ตาม (YEAR, MONTH) → dedup CUSTOMER_NAME keep first ทีละเดือน
+    → concat กลับ (ยังมีหลายเดือน/หลาย sheet)
+    → ใช้ sum ได้เลย = credit รวมทุกเดือนทุก sheet ที่ filter มา
     """
-    if "CUSTOMER_CODE" not in df.columns:
+    if "CUSTOMER_NAME" in df.columns:
+        dedup_col = "CUSTOMER_NAME"
+    elif "CUSTOMER_CODE" in df.columns:
+        dedup_col = "CUSTOMER_CODE"
+    else:
         return df
+
+    df = df.copy()
+    df["_DEDUP_KEY"] = df[dedup_col].astype(str).str.strip().str.upper()
+
     group_keys = [k for k in ("YEAR", "MONTH") if k in df.columns]
+
     if not group_keys:
-        return df.drop_duplicates(subset=["CUSTOMER_CODE"], keep="first")
+        result = df.drop_duplicates(subset=["_DEDUP_KEY"], keep="first")
+        return result.drop(columns=["_DEDUP_KEY"])
 
     parts = []
     for _, grp in df.groupby(group_keys, sort=False):
-        parts.append(grp.drop_duplicates(subset=["CUSTOMER_CODE"], keep="first"))
-    return pd.concat(parts, ignore_index=True)
+        parts.append(grp.drop_duplicates(subset=["_DEDUP_KEY"], keep="first"))
 
+    return pd.concat(parts, ignore_index=True).drop(columns=["_DEDUP_KEY"])
 
 # =============================================================================
 # Main Filter bar
@@ -368,10 +378,14 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
     )
 
     dedup_col = "CUSTOMER_NAME" if "CUSTOMER_NAME" in df_kpi.columns else "CUSTOMER_CODE"
-    snap_kpi  = (
-        df_kpi.sort_values("DATE", ascending=False).drop_duplicates(subset=[dedup_col])
-        if "DATE" in df_kpi.columns
-        else df_kpi.drop_duplicates(subset=[dedup_col])
+    # snap_kpi  = (
+    #     df_kpi.sort_values("DATE", ascending=False).drop_duplicates(subset=[dedup_col])
+    #     if "DATE" in df_kpi.columns
+    #     else df_kpi.drop_duplicates(subset=[dedup_col])
+    # )
+    snap_kpi = (
+    df_kpi.sort_values("DATE", ascending=False)
+    .drop_duplicates(subset=[dedup_col])  # ← dedup_col อาจเป็น CUSTOMER_NAME อยู่แล้ว
     )
     high_risk_count = int(
         (snap_kpi["CURRENT_DEBT_MILLION_THB_PERCENT"] >= DEBT_THRESHOLD).sum()
