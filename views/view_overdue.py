@@ -1042,8 +1042,18 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
         int(df["CustomerName"].nunique())
         if "CustomerName" in df.columns else 0
     )
-    total_amount = float(overdue_df["OverdueAbs"].sum()) if "OverdueAbs" in overdue_df.columns else 0.0
-    total_invoices = int(len(overdue_df))
+
+    total_amount = (
+        float(overdue_df["OverdueAbs"].sum())
+        if "OverdueAbs" in overdue_df.columns else 0.0
+    )
+
+    # ── Unique invoice documents (not raw row count) ──────────────────────────
+    total_invoices = (
+        int(overdue_df["InvoiceDocument"].nunique())
+        if "InvoiceDocument" in overdue_df.columns
+        else int(len(overdue_df))
+    )
 
     orig_overdue_custs = 0
     if "OriginalDueDate" in overdue_df.columns and "CustomerName" in overdue_df.columns:
@@ -1105,7 +1115,7 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
         (
             "Overdue Invoices",
             _fmt_count(total_invoices, view_type),
-            "Invoice records in period",
+            "Unique invoice documents",          # ← updated
             "warning" if total_invoices > 0 else "safe",
         ),
         (
@@ -1119,10 +1129,14 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
     cols = st.columns(6, gap="small")
     for col, (label, value, sub, variant) in zip(cols, cards):
         with col:
-            st.markdown(_overdue_kpi_card(label, value, sub, variant), unsafe_allow_html=True)
+            st.markdown(
+                _overdue_kpi_card(label, value, sub, variant),
+                unsafe_allow_html=True,
+            )
 
     st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
     _render_kpi_detail_tabs(df, overdue_df, today, largest_customer_full)
+
 
 # =============================================================================
 # Row 1 Left (60%) : Top Overdue Customers — Horizontal Bar
@@ -2001,6 +2015,7 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
     if overdue_df.empty:
         st.info("No overdue records with amount > 0.")
         return {}
+
     if "CustomerName" not in overdue_df.columns:
         st.info("CustomerName column not found.")
         return {}
@@ -2041,8 +2056,8 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
     else:
         recommend = all_customer_names
 
-    OPTION_ALL      = "__top_n__"
-    LABEL_ALL       = f"Top {int(top_n)} by total overdue"
+    OPTION_ALL       = "__top_n__"
+    LABEL_ALL        = f"Top {int(top_n)} by total overdue"
     options_display  = [LABEL_ALL] + recommend
     options_internal = [OPTION_ALL] + recommend
 
@@ -2050,7 +2065,7 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
     default_ix = options_internal.index(prev_sel) if prev_sel in options_internal else 0
 
     if recommend:
-        selected_display  = st.selectbox(
+        selected_display = st.selectbox(
             f"Select customer ({len(recommend)} found)",
             options=options_display, index=default_ix,
             key="od_trend_customer_select_label",
@@ -2072,7 +2087,11 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
 
     cust_totals   = grp.groupby("CustomerName")["OverdueAbs"].sum().sort_values(ascending=False)
     all_customers = cust_totals.index.tolist()
-    sel_customers = all_customers[:int(top_n)] if selected_internal == OPTION_ALL else [selected_internal]
+    sel_customers = (
+        all_customers[:int(top_n)]
+        if selected_internal == OPTION_ALL
+        else [selected_internal]
+    )
 
     if not sel_customers:
         st.info("No customers to display.")
@@ -2085,6 +2104,7 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
         .sort_values("_SortKey")["_PeriodLabel"]
         .tolist()
     )
+
     if not all_periods:
         st.info("No period data found.")
         return {}
@@ -2115,10 +2135,33 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
     for i, cust in enumerate(sel_customers):
         if cust not in pivot_raw.index:
             continue
-        color  = COLOR_PALETTE[i % len(COLOR_PALETTE)]
-        y_raw  = pivot_raw.loc[cust].tolist()
+
+        color      = COLOR_PALETTE[i % len(COLOR_PALETTE)]
+        y_raw_full = pivot_raw.loc[cust].tolist()
+
+        # ── Trim both leading AND trailing zeros ─────────────────────────────
+        # เหลือเฉพาะ "active window" จริงของ customer
+        # กัน leading 0 (period ก่อน customer เริ่ม overdue) บิด slope
+        first_nonzero_idx = next(
+            (i for i, v in enumerate(y_raw_full) if v > 0), None
+        )
+
+        if first_nonzero_idx is None:
+            # ไม่มี overdue เลยในทุก period
+            y_raw = y_raw_full
+        else:
+            last_nonzero_idx = max(
+                i for i, v in enumerate(y_raw_full) if v > 0
+            )
+            y_raw = y_raw_full[first_nonzero_idx : last_nonzero_idx + 1]
+        # ─────────────────────────────────────────────────────────────────────
+
         x_idx  = list(range(len(y_raw)))
-        slope  = float(_np.polyfit(x_idx, y_raw, 1)[0]) if len(y_raw) >= 2 and sum(y_raw) > 0 else 0.0
+        slope  = (
+            float(_np.polyfit(x_idx, y_raw, 1)[0])
+            if len(y_raw) >= 2 and sum(y_raw) > 0
+            else 0.0
+        )
         active_periods = int(sum(1 for v in y_raw if v > 0))
         total_periods  = len(y_raw)
         total_ov       = sum(y_raw)
@@ -2128,40 +2171,45 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
         max_ov         = max(y_raw) if y_raw else 0.0
         ratio          = active_periods / max(total_periods, 1)
 
-        if slope > 0 and ratio >= 0.5:        classification = "Escalating"
-        elif slope < 0 and ratio >= 0.3:      classification = "Improving"
-        elif ratio >= 0.5:                    classification = "Persistent"
-        else:                                 classification = "Intermittent"
+        if   slope > 0 and ratio >= 0.5:   classification = "Escalating"
+        elif slope < 0 and ratio >= 0.3:   classification = "Improving"
+        elif ratio >= 0.5:                 classification = "Persistent"
+        else:                              classification = "Intermittent"
 
         cust_meta[cust] = {
-            "color": color, "total_ov": total_ov, "last_ov": last_ov,
-            "delta_ov": delta_ov, "max_ov": max_ov, "slope": slope,
-            "active_periods": active_periods, "total_periods": total_periods,
+            "color":          color,
+            "total_ov":       total_ov,
+            "last_ov":        last_ov,
+            "delta_ov":       delta_ov,
+            "max_ov":         max_ov,
+            "slope":          slope,
+            "active_periods": active_periods,
+            "total_periods":  total_periods,
             "classification": classification,
         }
 
     fig = go.Figure()
-
     for i, cust in enumerate(sel_customers):
         if cust not in pivot_plot.index:
             continue
+
         color      = COLOR_PALETTE[i % len(COLOR_PALETTE)]
         y_plot     = pivot_plot.loc[cust].tolist()
         y_raw      = pivot_raw.loc[cust].tolist()
         cls        = cust_meta.get(cust, {}).get("classification", "")
         n          = len(y_raw)
+
         prev_amounts = [0.0] + y_raw[:-1]
         prev_labels  = ["—"] + all_periods[:-1]
         customdata   = list(zip(prev_amounts, y_raw, [cls] * n, prev_labels))
 
-        # hover — ใช้ _fmt_bar ทั้งสองโหมด
         if trend_mode == "Per-Period":
             hover = (
                 f"<b>{cust}</b><br>"
-                "Period           : %{x}<br>"
-                "Overdue          : <b>%{customdata[1]:,.2f} THB</b><br>"
-                "Prev Period      : %{customdata[0]:,.2f} THB  (%{customdata[3]})<br>"
-                "Classification   : %{customdata[2]}<br>"
+                "Period         : %{x}<br>"
+                "Overdue        : <b>%{customdata[1]:,.2f} THB</b><br>"
+                "Prev Period    : %{customdata[0]:,.2f} THB  (%{customdata[3]})<br>"
+                "Classification : %{customdata[2]}<br>"
                 "<extra></extra>"
             )
         else:
@@ -2194,29 +2242,35 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
             ),
         ))
 
-    # Y axis — Rounded: auto-scale tick, Detail: raw THB
+    # ── Y axis ────────────────────────────────────────────────────────────────
     if view_type == "Rounded Number":
-        max_val = max((max(pivot_plot.loc[c].max() for c in sel_customers
-                           if c in pivot_plot.index), 1))
+        max_val = max(
+            max(
+                (pivot_plot.loc[c].max() for c in sel_customers if c in pivot_plot.index),
+                default=1,
+            ),
+            1,
+        )
         if max_val >= 1_000_000_000:
             tick_div, tick_suffix, tick_fmt = 1_000_000_000, " B THB", ".1f"
         elif max_val >= 1_000_000:
-            tick_div, tick_suffix, tick_fmt = 1_000_000, " M THB", ".0f"
+            tick_div, tick_suffix, tick_fmt = 1_000_000,     " M THB", ".0f"
         else:
-            tick_div, tick_suffix, tick_fmt = 1_000, " K THB", ".0f"
+            tick_div, tick_suffix, tick_fmt = 1_000,         " K THB", ".0f"
 
-        y_vals_scaled = [[v / tick_div for v in pivot_plot.loc[c].tolist()]
-                         for c in sel_customers if c in pivot_plot.index]
+        y_vals_scaled = [
+            [v / tick_div for v in pivot_plot.loc[c].tolist()]
+            for c in sel_customers if c in pivot_plot.index
+        ]
         for trace, scaled in zip(fig.data[:len(sel_customers)], y_vals_scaled):
             trace.y = scaled
+
         if len(sel_customers) > 1:
-            avg_scaled = [v / tick_div for v in avg_y]
-            fig.data[-1].y = avg_scaled
+            fig.data[-1].y = [v / tick_div for v in avg_y]
 
         y_axis_cfg = dict(
             title=f"Overdue Amount ({tick_suffix.strip()})",
-            ticksuffix=tick_suffix,
-            tickformat=tick_fmt,
+            ticksuffix=tick_suffix, tickformat=tick_fmt,
             showgrid=True, gridcolor=GRID_COLOR,
             color=FONT_COLOR, tickfont=dict(size=9),
             rangemode="tozero",
@@ -2224,8 +2278,7 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
     else:
         y_axis_cfg = dict(
             title=y_title,
-            tickformat=",.0f",
-            ticksuffix=" THB",
+            tickformat=",.0f", ticksuffix=" THB",
             showgrid=True, gridcolor=GRID_COLOR,
             color=FONT_COLOR, tickfont=dict(size=9),
             rangemode="tozero",
@@ -2261,6 +2314,7 @@ def _render_overdue_trend(df: pd.DataFrame, granularity: str,
             font=dict(size=10, color="#1B2A3B"), align="left",
         ),
     })
+
     st.plotly_chart(fig, use_container_width=True, key="chart_overdue_trend")
     return cust_meta
 
