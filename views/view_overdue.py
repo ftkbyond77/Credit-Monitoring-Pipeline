@@ -506,19 +506,24 @@ def _render_filters(df_all: pd.DataFrame):
     )
 
     # -------------------------------------------------------------------------
-    # Row 1 : Company Code | Due From | Due To | Coll From | Coll To | Search
+    # Row 1 labels
     # -------------------------------------------------------------------------
     R1_COLS   = [1.0, 1.0, 1.0, 1.0, 1.0, 1.8]
     r1_labels = [
         "Company Code", "Due Date From", "Due Date To",
-        "Collection From", "Collection To", "Search Customer",
+        "Collection From", "Collection To", "Customer Code",
     ]
-
     lc = st.columns(R1_COLS, gap="small")
     for col, lbl in zip(lc, r1_labels):
         with col:
-            st.markdown(f'<span style="{LABEL_STYLE}">{lbl}</span>', unsafe_allow_html=True)
+            st.markdown(
+                f'<span style="{LABEL_STYLE}">{lbl}</span>',
+                unsafe_allow_html=True,
+            )
 
+    # -------------------------------------------------------------------------
+    # Row 1 widgets
+    # -------------------------------------------------------------------------
     wc = st.columns(R1_COLS, gap="small")
 
     with wc[0]:
@@ -548,65 +553,93 @@ def _render_filters(df_all: pd.DataFrame):
             label_visibility="collapsed", format="YYYY/MM/DD",
         )
 
-    df_scope = df_all[df_all["CompanyCode"] == selected_company]
+    # -------------------------------------------------------------------------
+    # Build df_scope ก่อน render Customer Code selectbox
+    # -------------------------------------------------------------------------
+    df_scope = df_all[df_all["CompanyCode"] == selected_company].copy()
 
-    all_customer_names: list = []
-    if "CustomerName" in df_scope.columns:
-        all_customer_names = sorted(
-            df_scope["CustomerName"].dropna().unique().tolist(),
-            key=lambda x: str(x).lower(),
+    # Detect company change -> reset customer selection
+    prev_company = st.session_state.get("_od_prev_company", "")
+    if str(selected_company) != str(prev_company):
+        st.session_state["_od_prev_company"]     = str(selected_company)
+        st.session_state["od_customer_code_sel"] = "__all__"
+
+    # Build customer code list
+    OPTION_ALL = "__all__"
+    LABEL_ALL  = "All Customers"
+
+    code_name_map: dict = {}
+    if "Customer" in df_scope.columns and "CustomerName" in df_scope.columns:
+        tmp = (
+            df_scope[["Customer", "CustomerName"]]
+            .dropna(subset=["Customer"])
+            .drop_duplicates(subset=["Customer"])
+            .copy()
         )
+        tmp["Customer"] = tmp["Customer"].astype(int)
+        tmp = tmp.sort_values("Customer")
+        for _, row in tmp.iterrows():
+            code_name_map[str(int(row["Customer"]))] = str(row["CustomerName"])
+    elif "Customer" in df_scope.columns:
+        codes = (
+            pd.to_numeric(df_scope["Customer"], errors="coerce")
+            .dropna().astype(int).unique()
+        )
+        for c in sorted(codes):
+            code_name_map[str(c)] = ""
+
+    options_internal = [OPTION_ALL] + list(code_name_map.keys())
+
+    def _fmt_code(val: str) -> str:
+        if val == OPTION_ALL:
+            return LABEL_ALL
+        name = code_name_map.get(val, "")
+        return f"{val}  —  {name}" if name else val
 
     with wc[5]:
-        search_query = st.text_input(
-            "Search Customer",
-            placeholder="Name or Customer Code...",
-            key="od_customer_search",
+        current_val = st.session_state.get("od_customer_code_sel", OPTION_ALL)
+        if current_val not in options_internal:
+            current_val = OPTION_ALL
+            st.session_state["od_customer_code_sel"] = OPTION_ALL
+
+        selected_code = st.selectbox(
+            "Customer Code",
+            options=options_internal,
+            format_func=_fmt_code,
+            index=options_internal.index(current_val),
+            key="od_customer_code_sel",
             label_visibility="collapsed",
-        ).strip()
+        )
 
-    # -------------------------------------------------------------------------
-    # Build recommend list ก่อน render Row 2
-    # เพราะ Row 2 col สุดท้ายต้องการ found_n เพื่อแสดงใน label
-    # -------------------------------------------------------------------------
-    if search_query:
-        q_lower       = search_query.lower()
-        name_hits     = [n for n in all_customer_names if q_lower in str(n).lower()]
-        code_hits_names: list = []
-        if "Customer" in df_scope.columns and "CustomerName" in df_scope.columns:
-            code_match = (
-                df_scope[
-                    df_scope["Customer"].astype(str)
-                    .str.lower().str.contains(q_lower, na=False)
-                ]["CustomerName"].dropna().unique().tolist()
+        if selected_code != OPTION_ALL:
+            cname = code_name_map.get(selected_code, "")
+            badge_text = f"{selected_code}  —  {cname}" if cname else selected_code
+            st.markdown(
+                f'<span style="'
+                f'display:inline-block;margin-top:3px;'
+                f'background:#1B4F8A;color:white;'
+                f'padding:2px 9px;border-radius:8px;'
+                f'font-size:0.68rem;font-weight:600;'
+                f'max-width:100%;overflow:hidden;'
+                f'text-overflow:ellipsis;white-space:nowrap;'
+                f'">{badge_text}</span>',
+                unsafe_allow_html=True,
             )
-            code_hits_names = [n for n in code_match if n not in name_hits]
-        recommend_list = list(dict.fromkeys(name_hits + code_hits_names))
-    else:
-        recommend_list = all_customer_names
-
-    OPTION_ALL       = "All customers"
-    options_with_all = [OPTION_ALL] + recommend_list
-    prev_sel         = st.session_state.get("od_customer_select", OPTION_ALL)
-    default_sel_ix   = (
-        options_with_all.index(prev_sel)
-        if prev_sel in options_with_all else 0
-    )
+        else:
+            st.markdown(
+                '<span style="display:block;min-height:1.4rem;"></span>',
+                unsafe_allow_html=True,
+            )
 
     # -------------------------------------------------------------------------
-    # Row 2 labels — ทุก column render label ใน lc2 เท่านั้น
-    # ไม่มี label ซ้ำใน wc2 เพื่อให้ทุก column เริ่ม widget ที่ระดับเดียวกัน
+    # Row 2 labels  (5 columns — ตัด Select Customer Name ออก)
     # -------------------------------------------------------------------------
-    R2_COLS   = [0.85, 0.85, 1.1, 0.85, 1.1, 1.8]
+    R2_COLS   = [0.85, 0.85, 1.1, 0.85, 1.1]
     r2_labels = [
         "View Type",
-        "Due Date Group",
-        "",
-        "Collection Group",
-        "",
-        f"Select Customer ({len(recommend_list)} found)",
+        "Due Date Group", "",
+        "Collection Group", "",
     ]
-
     lc2 = st.columns(R2_COLS, gap="small")
     for col, lbl in zip(lc2, r2_labels):
         with col:
@@ -622,7 +655,7 @@ def _render_filters(df_all: pd.DataFrame):
                 )
 
     # -------------------------------------------------------------------------
-    # Row 2 widgets — ทุก column มีแค่ widget ไม่มี label ซ้ำ
+    # Row 2 widgets  (5 columns)
     # -------------------------------------------------------------------------
     wc2 = st.columns(R2_COLS, gap="small")
 
@@ -663,25 +696,6 @@ def _render_filters(df_all: pd.DataFrame):
             df_scope, "CollectionDate", coll_period, "od_grp_coll_val"
         )
 
-    with wc2[5]:
-        if recommend_list or not search_query:
-            selected_customer_name = st.selectbox(
-                "Select Customer",
-                options=options_with_all,
-                index=default_sel_ix,
-                key="od_customer_select",
-                label_visibility="collapsed",
-            )
-        else:
-            st.markdown(
-                f'<div style="border:1px solid #d0dae6;border-radius:6px;'
-                f'padding:6px 10px;background:rgba(208,218,230,0.15);'
-                f'font-size:0.72rem;color:#aab4c0;line-height:1.4;">'
-                f"No match for '{search_query}'.</div>",
-                unsafe_allow_html=True,
-            )
-            selected_customer_name = OPTION_ALL
-
     # -------------------------------------------------------------------------
     # Apply filters
     # -------------------------------------------------------------------------
@@ -693,16 +707,26 @@ def _render_filters(df_all: pd.DataFrame):
     df_filtered = df_company.copy()
 
     if due_start and "OriginalDueDate" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["OriginalDueDate"] >= pd.Timestamp(due_start)]
+        df_filtered = df_filtered[
+            df_filtered["OriginalDueDate"] >= pd.Timestamp(due_start)
+        ]
     if due_end and "OriginalDueDate" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["OriginalDueDate"] <= pd.Timestamp(due_end)]
+        df_filtered = df_filtered[
+            df_filtered["OriginalDueDate"] <= pd.Timestamp(due_end)
+        ]
     if coll_start and "CollectionDate" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["CollectionDate"] >= pd.Timestamp(coll_start)]
+        df_filtered = df_filtered[
+            df_filtered["CollectionDate"] >= pd.Timestamp(coll_start)
+        ]
     if coll_end and "CollectionDate" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["CollectionDate"] <= pd.Timestamp(coll_end)]
+        df_filtered = df_filtered[
+            df_filtered["CollectionDate"] <= pd.Timestamp(coll_end)
+        ]
 
-    if selected_customer_name != OPTION_ALL and "CustomerName" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["CustomerName"] == selected_customer_name]
+    if selected_code != OPTION_ALL and "Customer" in df_filtered.columns:
+        df_filtered = df_filtered[
+            df_filtered["Customer"].astype(int).astype(str) == selected_code
+        ]
 
     df_filtered = _apply_period_filter(
         df_filtered, "OriginalDueDate", od_period, _od_period_value
@@ -712,13 +736,17 @@ def _render_filters(df_all: pd.DataFrame):
     )
 
     if df_filtered.empty and _od_period_value and _coll_period_value:
-        df_od_only   = _apply_period_filter(df_company.copy(), "OriginalDueDate", od_period, _od_period_value)
-        df_coll_only = _apply_period_filter(df_company.copy(), "CollectionDate",  coll_period, _coll_period_value)
+        df_od_only   = _apply_period_filter(
+            df_company.copy(), "OriginalDueDate", od_period, _od_period_value
+        )
+        df_coll_only = _apply_period_filter(
+            df_company.copy(), "CollectionDate",  coll_period, _coll_period_value
+        )
         st.warning(
             f"No data matches both period filters simultaneously.  "
-            f"Due {od_period} '{_od_period_value}' → **{len(df_od_only):,}** rows  |  "
-            f"Coll {coll_period} '{_coll_period_value}' → **{len(df_coll_only):,}** rows  "
-            f"— intersection is empty."
+            f"Due {od_period} '{_od_period_value}' -> **{len(df_od_only):,}** rows  |  "
+            f"Coll {coll_period} '{_coll_period_value}' -> **{len(df_coll_only):,}** rows  "
+            f"-- intersection is empty."
         )
 
     # -------------------------------------------------------------------------
@@ -726,23 +754,27 @@ def _render_filters(df_all: pd.DataFrame):
     # -------------------------------------------------------------------------
     parts = []
     if due_start or due_end:
-        parts.append("Due: " + " → ".join(filter(None, [
+        parts.append("Due: " + " -> ".join(filter(None, [
             str(due_start) if due_start else None,
             str(due_end)   if due_end   else None,
         ])))
     if coll_start or coll_end:
-        parts.append("Collected: " + " → ".join(filter(None, [
+        parts.append("Collected: " + " -> ".join(filter(None, [
             str(coll_start) if coll_start else None,
             str(coll_end)   if coll_end   else None,
         ])))
-    if selected_customer_name != OPTION_ALL:
-        parts.append(f"Customer: {selected_customer_name}")
+    if selected_code != OPTION_ALL:
+        cname = code_name_map.get(selected_code, "")
+        parts.append(
+            f"Customer: {selected_code}" + (f" ({cname})" if cname else "")
+        )
     if od_period != "All" and _od_period_value:
         parts.append(f"Due {od_period}: {_od_period_value}")
     if coll_period != "All" and _coll_period_value:
         parts.append(f"Coll {coll_period}: {_coll_period_value}")
 
     period_label_str = "  |  ".join(parts) if parts else "All Dates"
+
     return df_filtered, selected_company, period_label_str, view_type
 
 
