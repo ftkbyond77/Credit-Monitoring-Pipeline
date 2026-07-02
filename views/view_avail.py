@@ -148,7 +148,7 @@ def render():
     st.markdown(
         dash_title_bar(
             "Credit Availability Dashboard",
-            "Analytics Dashboard — real-time credit exposure monitoring",
+            "Abalytics Dashboard - Credit Availability Exposure Monitoring",
         ),
         unsafe_allow_html=True,
     )
@@ -159,7 +159,7 @@ def render():
     _render_kpi_row(df, view_type)
     st.markdown("", unsafe_allow_html=True)
 
-    st.markdown(section_header("Customer Credit Utilization Analysis"), unsafe_allow_html=True)
+    st.markdown(section_header("Customer Credit Utilization"), unsafe_allow_html=True)
     _render_utilization_search(df)
 
     r2_left, r2_right = st.columns([3.2, 1.1], gap="medium")
@@ -169,7 +169,7 @@ def render():
         _render_risk_pie(df)
 
     st.markdown("", unsafe_allow_html=True)
-    st.markdown(section_header("Distribution and Trend"), unsafe_allow_html=True)
+    st.markdown(section_header("Debt Concentration & Average Monthly Utilization"), unsafe_allow_html=True)
     r3_left, r3_right = st.columns([1, 1.6], gap="medium")
     with r3_left:
         _render_debt_by_type(df, view_type)
@@ -181,7 +181,7 @@ def render():
     _render_customer_table(df, top_n)
     st.markdown("", unsafe_allow_html=True)
 
-    st.markdown(section_header("Customer Trend Analysis"), unsafe_allow_html=True)
+    st.markdown(section_header("Customer Credit Utilization Trend Analysis"), unsafe_allow_html=True)
     _render_trend_analysis(df_raw, granularity, selected_years, view_type) 
 
 # =============================================================================

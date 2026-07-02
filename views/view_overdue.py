@@ -130,7 +130,7 @@ def render():
     st.markdown(
         dash_title_bar(
             "Credit Overdue Dashboard",
-            "Analytics Dashboard — overdue exposure monitoring by customer",
+            "Analytics Dashboard - Credit Overdue Exposure Monitoring",
         ),
         unsafe_allow_html=True,
     )
@@ -146,7 +146,7 @@ def render():
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
 
     st.markdown(
-        section_header(f"Priority Monitoring & Risk Matrix — {period_label_str}"),
+        section_header(f"Overdue Priority & Overdue Distribution — {period_label_str}"),
         unsafe_allow_html=True,
     )
     col_priority, col_risk = st.columns([3, 2], gap="medium")
@@ -157,7 +157,7 @@ def render():
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
 
     st.markdown(
-        section_header("Aging Distribution — Current Debt by DPD Bucket"),
+        section_header("Aging Distribution — Overdue Amount by DPD Bucket"),
         unsafe_allow_html=True,
     )
     _render_exposure_utilization(df_filtered, df_avail_full, view_type)
@@ -170,7 +170,7 @@ def render():
     _render_invoice_date_segmentation(df_filtered)
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
 
-    st.markdown(section_header("Aging Analysis & Trend"), unsafe_allow_html=True)
+    st.markdown(section_header("Upcoming Overdue Trend — Current & Forward View"), unsafe_allow_html=True)
     with st.expander("Portfolio Classification Guide", expanded=False):
         guide_cls = [
             {"Classification": "Escalating",   "Criteria": "slope > 0, active ratio >= 50%",  "Risk": "High"},
@@ -207,8 +207,8 @@ def render():
         _render_trend_summary_panel(cust_meta or {})
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
 
-    # Section 6 : Portfolio Concentration
-    st.markdown(section_header("Portfolio Concentration"), unsafe_allow_html=True)
+    # Section 6 : Overdue Share by Customer
+    st.markdown(section_header("Overdue Share by Customer"), unsafe_allow_html=True)
     _render_treemap(df_filtered, view_type)
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
 
@@ -1091,7 +1091,7 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
         (
             "Total Customers",
             f"{total_customers:,}",
-            "All customers in filter",
+            "Unique customers",
             "info",
         ),
         (
@@ -1103,7 +1103,7 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
         (
             "Overdue — Collection Due",
             _fmt_count(coll_overdue_custs, view_type),
-            "Past collection deadline",
+            "Past collection date",
             "danger" if coll_overdue_custs > 0 else "safe",
         ),
         (
@@ -1894,12 +1894,12 @@ def _render_invoice_date_segmentation(df: pd.DataFrame):
             )
 
     # =========================================================================
-    # Detailed Debtor Registry — full width ด้านล่าง
+    # Detailed Debtor Registry 
     # =========================================================================
     st.markdown(
         f'<div style="font-size:0.75rem;font-weight:700;color:{PALETTE["sapphire"]};'
         f'letter-spacing:0.05em;text-transform:uppercase;margin:16px 0 8px 0;">'
-        f'Detailed Debtor Registry</div>',
+        f'Detailed Debtor By Stage</div>',
         unsafe_allow_html=True,
     )
 
@@ -2637,7 +2637,7 @@ def _render_treemap(df: pd.DataFrame, view_type: str = "Detail Number"):
         "height": 520,
         "margin": dict(l=0, r=0, t=40, b=4),
         "title": dict(
-            text="Portfolio Concentration — Overdue Amount by Customer (Top 30)",
+            text="Overdue Share by Customer — Top 30",
             font=dict(size=12, color=FONT_COLOR), x=0,
         ),
     })

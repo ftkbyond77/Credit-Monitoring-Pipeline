@@ -201,7 +201,7 @@ def render():
     st.markdown(
         dash_title_bar(
             "Credit Monitoring Dashboard",
-            "Credit Monitoring — health snapshot, planning, and historical analysis",
+            "Analytics Dashboard — Credit Availability and Credit Overdue Monitoring (Join)" 
         ),
         unsafe_allow_html=True,
     )
@@ -222,18 +222,12 @@ def render():
     # ==================================================================
     # ZONE 1 — HEALTH SNAPSHOT
     # ==================================================================
-    st.markdown(
-        "<div style='font-size:0.72rem;font-weight:700;color:#8A9BB0;"
-        "text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 4px;'>"
-        "ZONE 1 — HEALTH SNAPSHOT</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(section_header("Monitoring Health — Key Signals"), unsafe_allow_html=True)
+    st.markdown(section_header("Key Metrics"), unsafe_allow_html=True)
     _render_kpi_row(df_filtered, view_type)
 
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
     st.markdown(
-        section_header("Credit Health Matrix — Utilization vs Overdue Risk"),
+        section_header("Customer Segmentation by Credit Usage & Overdue"),
         unsafe_allow_html=True,
     )
     # ส่ง matched_avail_year ไปด้วย
@@ -241,7 +235,7 @@ def render():
 
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
     st.markdown(
-        section_header("Watchlist — Customers Needing Immediate Attention"),
+        section_header("Watchlist — Customer Segmentation"),
         unsafe_allow_html=True,
     )
     _render_watchlist(df_filtered, view_type)
@@ -251,25 +245,19 @@ def render():
     # ==================================================================
     # ZONE 2 — PLANNING
     # ==================================================================
-    st.markdown(
-        "<div style='font-size:0.72rem;font-weight:700;color:#8A9BB0;"
-        "text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 4px;'>"
-        "ZONE 2 — PLANNING</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(section_header("Collection Pipeline"), unsafe_allow_html=True)
+    st.markdown(section_header("Invoice Overview — Paid, Overdue & Upcoming"), unsafe_allow_html=True)
     _render_collection_pipeline(df_filtered, view_type)
 
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-    st.markdown(section_header("Cash Inflow Planning"), unsafe_allow_html=True)
+    st.markdown(section_header("Invoice Amount Collection Planning — Current & Forward View"), unsafe_allow_html=True)
     _render_cash_inflow_forecast(df_filtered, view_type)
 
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-    st.markdown(section_header("Collection Planning"), unsafe_allow_html=True)
+    st.markdown(section_header("Overdue Amount Collection Planning — Current & Forward View"), unsafe_allow_html=True)
     _render_future_collection_forecast(df_filtered, view_type)
 
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
-    st.markdown(section_header("Credit Planner — Action Board"), unsafe_allow_html=True)
+    st.markdown(section_header("Credit Review — Action Board"), unsafe_allow_html=True)
     _render_credit_planner_board(df_filtered)
 
     st.markdown("<div style='margin-top:4px'></div>", unsafe_allow_html=True)
@@ -278,13 +266,7 @@ def render():
     # ZONE 3 — HISTORICAL ANALYSIS
     # ==================================================================
     st.markdown(
-        "<div style='font-size:0.72rem;font-weight:700;color:#8A9BB0;"
-        "text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 4px;'>"
-        "ZONE 3 — HISTORICAL ANALYSIS</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        section_header("Credit Journey — Invoice Extension Sankey"),
+        section_header("Credit Bucket — Payment Journey & Outcome"),
         unsafe_allow_html=True,
     )
     _render_credit_journey_sankey(df_filtered, view_type)
@@ -997,9 +979,9 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
 
     cards = [
         (
-            "Portfolio Coverage",
+            "Total Customers",
             _fmt_count(total_customers, view_type),
-            "Active customers monitored",
+            "Unique customers",
             "info",
         ),
         (
@@ -1009,7 +991,7 @@ def _render_kpi_row(df: pd.DataFrame, view_type: str):
             "danger" if critical_count > 0 else "safe",
         ),
         (
-            "Net Overdue Exposure",
+            "Total Overdue Amount",
             _fmt_thb(net_overdue, view_type),
             f"Gross {_fmt_thb(gross_overdue, view_type)}",
             "danger" if net_overdue > 0 else "safe",
@@ -1055,7 +1037,7 @@ def _render_kpi_detail_tabs(df: pd.DataFrame, snap: pd.DataFrame, view_type: str
         tab_all, tab_crit, tab_net, tab_pct = st.tabs([
             "Monitored Customers",
             "Critical Risk",
-            "Net Overdue Exposure",
+            "Total Overdue Amount",
             "% Customers Overdue",
         ])
 
@@ -1528,7 +1510,7 @@ def _render_health_matrix_section(
     month_col, info_col = st.columns([2, 5])
     with month_col:
         st.markdown(
-            f'<span style="{LABEL_STYLE}">Filter by Availability Month</span>',
+            f'<span style="{LABEL_STYLE}">Filter by Credit Availability Month</span>',
             unsafe_allow_html=True,
         )
         month_opts   = ["All"] + [f"{m:02d} — {lbl}" for m, lbl in avail_months]
@@ -2413,7 +2395,7 @@ def _render_cash_inflow_forecast(df_filtered: pd.DataFrame, view_type: str = "De
     c1, c2 = st.columns([1, 1])
     with c1:
         horizon = st.selectbox(
-            "Forecast Horizon",
+            "Horizon (Days)",
             options=["7 days", "14 days", "30 days", "60 days", "90 days", "120 days"],
             index=2, key="cif_horizon", label_visibility="visible",
         )
@@ -2519,13 +2501,13 @@ def _render_cash_inflow_forecast(df_filtered: pd.DataFrame, view_type: str = "De
     max_raw = float(weekly["Amount"].max()) if not weekly.empty else 0.0
     if view_type == "Rounded Number":
         if max_raw >= 1_000_000_000:
-            y_div, y_title = 1_000_000_000, "Planned Inflow (Billion Baht)"
+            y_div, y_title = 1_000_000_000, "Invoice Amount (Billion Baht)"
         elif max_raw >= 1_000_000:
-            y_div, y_title = 1_000_000, "Planned Inflow (Million Baht)"
+            y_div, y_title = 1_000_000, "Invoice Amount (Million Baht)"
         elif max_raw >= 1_000:
-            y_div, y_title = 1_000, "Planned Inflow (Thousand Baht)"
+            y_div, y_title = 1_000, "Invoice Amount (Thousand Baht)"
         else:
-            y_div, y_title = 1, "Planned Inflow (Baht)"
+            y_div, y_title = 1, "Invoice Amount (Baht)"
 
         weekly["Y_PLOT"]  = weekly["Amount"] / y_div
         avg_plot          = avg_val / y_div
@@ -2613,7 +2595,7 @@ def _render_cash_inflow_forecast(df_filtered: pd.DataFrame, view_type: str = "De
         "margin": dict(l=0, r=20, t=50, b=20),
         "title": dict(
             text=(
-                f"Cash Inflow Planning — {amount_col} | "
+                f"Invoice Amount Collection Planning — {amount_col} | "
                 f"Next {horizon_days} days "
                 f"({today.strftime('%d %b %Y')} → {cutoff.strftime('%d %b %Y')})"
             ),
@@ -2781,7 +2763,7 @@ def _render_future_collection_forecast(df_overdue: pd.DataFrame, view_type: str 
         "barmode": "overlay",
         "title": dict(
             text=(
-                f"Collection Planning — Overdue Amount | "
+                f"Overdue Amount Collection Planning — Overdue Amount | "
                 f"Next {horizon_days} days "
                 f"({today.strftime('%d %b %Y')} → {cutoff.strftime('%d %b %Y')})"
             ),
@@ -2858,7 +2840,7 @@ def _render_credit_planner_board(df: pd.DataFrame):
         cust_agg["MaxExtension"] = 0
 
     CALL_THRESHOLD        = 5_000_000
-    REVIEW_UTIL_THRESHOLD = 90.0
+    REVIEW_UTIL_THRESHOLD = 80.0
     ESCALATE_EXT_DAYS     = 30
 
     cust_agg["Action_Review"]   = cust_agg["NetOverdue"] > CALL_THRESHOLD
@@ -3215,7 +3197,7 @@ def _render_credit_journey_sankey(df_filtered: pd.DataFrame, view_type: str = "D
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#1B2A3B", family="Inter, sans-serif", size=12),
             title=dict(
-                text="Credit Journey — Extension Bucket → Payment Outcome",
+                text="Credit Journey — Invoice Extension | Sankey Distribution Analysis",
                 font=dict(size=10, color=FONT_COLOR), x=0,
             ),
         )
